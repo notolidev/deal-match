@@ -1,4 +1,3 @@
-import type { BrowserContext } from "playwright";
 import type { ProductSignals } from "@deal-match/shared";
 import { LLM_ENABLED, MODEL, anthropic } from "./llm.js";
 
@@ -6,6 +5,14 @@ export interface SearchHit {
   title: string;
   url: string;
   snippet?: string;
+}
+
+const SEARXNG_URL = process.env.SEARXNG_URL ?? "http://searxng:8080";
+
+interface SearxResult {
+  url?: string;
+  title?: string;
+  content?: string;
 }
 
 // Match known retailers by name as a domain label, so region TLDs
@@ -80,58 +87,46 @@ function heuristicQuery(title: string, brand: string | undefined): string {
 }
 
 /**
- * Uses DuckDuckGo's HTML endpoint — no JS, no CAPTCHA in practice, no API key.
- * Results are noisy; downstream filtering keeps only retailer domains.
+ * Queries the self-hosted SearXNG instance's JSON API (it aggregates many
+ * engines server-side, avoiding the datacenter-IP blocks that killed direct
+ * search-engine scraping). Results are filtered to known retailer domains.
  */
 export async function search(
-  ctx: BrowserContext,
   signals: ProductSignals,
   limit = 8,
 ): Promise<SearchHit[]> {
   if (!signals.title) return [];
-  const page = await ctx.newPage();
+
+  const url = new URL("/search", SEARXNG_URL);
+  url.searchParams.set("q", await buildQuery(signals));
+  url.searchParams.set("format", "json");
+  url.searchParams.set("categories", "general");
+
+  let results: SearxResult[] = [];
   try {
-    const q = encodeURIComponent(await buildQuery(signals));
-    await page.goto(`https://duckduckgo.com/html/?q=${q}`, {
-      waitUntil: "domcontentloaded",
-      timeout: 15_000,
-    });
-
-    const hits = await page.$$eval(".result", (rows) =>
-      rows
-        .map((r) => {
-          const a = r.querySelector<HTMLAnchorElement>(".result__a");
-          const snippet = r.querySelector(".result__snippet");
-          return {
-            title: a?.textContent?.trim() ?? "",
-            url: a?.href ?? "",
-            snippet: snippet?.textContent?.trim() ?? "",
-          };
-        })
-        .filter((h) => h.url),
-    );
-
-    const filtered = hits
-      .map((h) => {
-        try {
-          const u = new URL(h.url);
-          const direct = u.searchParams.get("uddg");
-          return { ...h, url: direct ?? h.url };
-        } catch {
-          return h;
-        }
-      })
-      .filter((h) => {
-        try {
-          const host = new URL(h.url).hostname.replace(/^www\./, "");
-          return RETAILER_RE.test(host);
-        } catch {
-          return false;
-        }
-      });
-
-    return filtered.slice(0, limit);
-  } finally {
-    await page.close().catch(() => {});
+    const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+    if (!res.ok) throw new Error(`searxng responded ${res.status}`);
+    const data = (await res.json()) as { results?: SearxResult[] };
+    results = data.results ?? [];
+  } catch (err) {
+    console.error("searxng search failed", err);
+    return [];
   }
+
+  return results
+    .filter((r): r is SearxResult & { url: string } => Boolean(r.url))
+    .map((r) => ({
+      title: r.title ?? "",
+      url: r.url,
+      snippet: r.content,
+    }))
+    .filter((h) => {
+      try {
+        const host = new URL(h.url).hostname.replace(/^www\./, "");
+        return RETAILER_RE.test(host);
+      } catch {
+        return false;
+      }
+    })
+    .slice(0, limit);
 }

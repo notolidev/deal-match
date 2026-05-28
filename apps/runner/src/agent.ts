@@ -35,7 +35,7 @@ export async function findDeals(
 
     // 2. Search the open web for the same product across other retailers.
     if (!signals.title) return observations;
-    const hits = await search(ctx, signals, MAX_CANDIDATES);
+    const hits = await search(signals, MAX_CANDIDATES);
 
     const limit = pLimit(PARALLEL);
     const sameHost = hostname(signals.url);

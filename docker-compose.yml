@@ -22,6 +22,19 @@ services:
       timeout: 5s
       retries: 5
 
+  searxng:
+    image: searxng/searxng:latest
+    restart: unless-stopped
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    environment:
+      SEARXNG_BASE_URL: http://localhost:8080/
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+    expose:
+      - "8080"
+
   runner:
     build:
       context: .
@@ -34,9 +47,12 @@ services:
       PORT: "8080"
       RUNNER_TOKEN: ${RUNNER_TOKEN:?set RUNNER_TOKEN in .env}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      SEARXNG_URL: http://searxng:8080
     depends_on:
       postgres:
         condition: service_healthy
+      searxng:
+        condition: service_started
     expose:
       - "8080"
 

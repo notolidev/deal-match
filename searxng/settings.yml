@@ -1,0 +1,19 @@
+# Minimal override on top of SearXNG defaults. Only reachable on the internal
+# docker network (not published), and queried server-to-server by the runner.
+use_default_settings: true
+
+server:
+  # Replace before first run:
+  #   sed -i "s|CHANGE_ME|$(openssl rand -hex 32)|" searxng/settings.yml
+  secret_key: "CHANGE_ME"
+  # Disable the bot limiter — requests come from the runner, not browsers.
+  limiter: false
+  image_proxy: false
+
+search:
+  # Enable the JSON API the runner consumes.
+  formats:
+    - html
+    - json
+  safe_search: 0
+  autocomplete: ""
