@@ -6,9 +6,7 @@ export function sql() {
   if (_sql) return _sql;
   const url = process.env.DATABASE_URL;
   if (!url) {
-    throw new Error(
-      "DATABASE_URL is not set — provision a Postgres integration in the Vercel Marketplace (Neon recommended) and re-run `vercel env pull`.",
-    );
+    throw new Error("DATABASE_URL is not set on the runner.");
   }
   _sql = postgres(url, { prepare: false, max: 5 });
   return _sql;

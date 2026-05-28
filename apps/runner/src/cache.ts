@@ -3,8 +3,8 @@ import type {
   PriceObservation,
   ProductSignals,
 } from "@deal-match/shared";
-import { sql } from "./db";
-import { identityHash } from "./identity";
+import { sql } from "./db.js";
+import { identityHash } from "./identity.js";
 
 const FRESH_MS = 24 * 60 * 60 * 1000;
 
@@ -79,8 +79,6 @@ export async function writeAnalysis(
   result: AnalysisResult,
 ): Promise<void> {
   const db = sql();
-  // postgres-js' json() helper has a strict JSONValue union; AnalysisResult is
-  // structurally compatible at runtime, so we cast through `any` here.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const payload = db.json(result as any);
   await db`

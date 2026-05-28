@@ -1,6 +1,7 @@
 import express from "express";
 import { z } from "zod";
-import { findDeals } from "./agent.js";
+import type { AnalyzeResponse } from "@deal-match/shared";
+import { getJob, startAnalysis } from "./jobs.js";
 import { shutdownBrowser } from "./browser.js";
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -26,23 +27,32 @@ const signalsSchema = z.object({
   pageTextSnippet: z.string().optional(),
 });
 
-const bodySchema = z.object({ signals: signalsSchema });
+const bodySchema = z.object({
+  signals: signalsSchema,
+  refresh: z.boolean().optional(),
+});
 
 const app = express();
 app.use(express.json({ limit: "256kb" }));
+
+function authed(req: express.Request): boolean {
+  const auth = req.header("authorization") ?? "";
+  const provided = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  return !!TOKEN && provided === TOKEN;
+}
 
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
 
+// Start an analysis. Returns immediately with a jobId (or a cached result),
+// then runs the full pipeline in the background — no request-time limit here,
+// unlike Vercel functions.
 app.post("/run", async (req, res) => {
-  const auth = req.header("authorization") ?? "";
-  const provided = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-  if (!TOKEN || provided !== TOKEN) {
+  if (!authed(req)) {
     res.status(401).json({ error: "unauthorized" });
     return;
   }
-
   const parsed = bodySchema.safeParse(req.body);
   if (!parsed.success) {
     res
@@ -52,14 +62,39 @@ app.post("/run", async (req, res) => {
   }
 
   try {
-    const observations = await findDeals(parsed.data.signals);
-    res.json({ observations });
+    const job = await startAnalysis(parsed.data.signals, !!parsed.data.refresh);
+    const out: AnalyzeResponse = {
+      jobId: job.id,
+      status: job.status,
+      result: job.result,
+    };
+    res.json(out);
   } catch (err) {
-    console.error("findDeals failed", err);
+    console.error("startAnalysis failed", err);
     res.status(500).json({
       error: err instanceof Error ? err.message : String(err),
     });
   }
+});
+
+// Poll a running job.
+app.get("/jobs/:id", (req, res) => {
+  if (!authed(req)) {
+    res.status(401).json({ error: "unauthorized" });
+    return;
+  }
+  const job = getJob(req.params.id);
+  if (!job) {
+    res.status(404).json({ error: "job not found" });
+    return;
+  }
+  const out: AnalyzeResponse = {
+    jobId: job.id,
+    status: job.status,
+    result: job.result,
+    error: job.error,
+  };
+  res.json(out);
 });
 
 const server = app.listen(PORT, () => {

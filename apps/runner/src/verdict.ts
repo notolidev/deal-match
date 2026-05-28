@@ -1,19 +1,17 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type {
   AnalysisResult,
   PriceObservation,
   ProductSignals,
 } from "@deal-match/shared";
+import { LLM_ENABLED, MODEL, anthropic } from "./llm.js";
 
 const verdictSchema = z.object({
   verdict: z.enum(["buy", "wait", "neutral"]),
   confidence: z.number().min(0).max(1),
-  oneLineReason: z.string().max(160),
-  waitForEvent: z.string().max(160).optional(),
+  oneLineReason: z.string(),
+  waitForEvent: z.string().optional(),
 });
-
-const MODEL = "claude-haiku-4-5";
 
 export async function synthesizeVerdict(
   signals: ProductSignals,
@@ -23,8 +21,7 @@ export async function synthesizeVerdict(
     signals.price ??
     observations.find((o) => sameHost(o.url, signals.url))?.price ??
     observations[0]?.price;
-  const currency =
-    signals.currency ?? observations[0]?.currency ?? "USD";
+  const currency = signals.currency ?? observations[0]?.currency ?? "USD";
 
   const sorted = [...observations].sort((a, b) => a.price - b.price);
   const cheapest = sorted[0];
@@ -45,7 +42,7 @@ export async function synthesizeVerdict(
     verdict: betterDeal ? "wait" : "neutral",
     confidence: 0.4,
     oneLineReason: betterDeal
-      ? `Same item is $${betterDeal.savings.toFixed(2)} cheaper at ${betterDeal.retailer}.`
+      ? `Same item is ${betterDeal.savings.toFixed(2)} cheaper at ${betterDeal.retailer}.`
       : "Not enough data to judge — price looks typical.",
     currentPrice,
     currency,
@@ -55,12 +52,10 @@ export async function synthesizeVerdict(
     generatedAt: new Date().toISOString(),
   };
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return fallback;
-  }
+  if (!LLM_ENABLED) return fallback;
 
   try {
-    const msg = await new Anthropic().messages.create({
+    const msg = await anthropic().messages.create({
       model: MODEL,
       max_tokens: 512,
       system:
@@ -74,8 +69,8 @@ export async function synthesizeVerdict(
             properties: {
               verdict: { type: "string", enum: ["buy", "wait", "neutral"] },
               confidence: { type: "number", minimum: 0, maximum: 1 },
-              oneLineReason: { type: "string", maxLength: 160 },
-              waitForEvent: { type: "string", maxLength: 160 },
+              oneLineReason: { type: "string" },
+              waitForEvent: { type: "string" },
             },
             required: ["verdict", "confidence", "oneLineReason"],
           },

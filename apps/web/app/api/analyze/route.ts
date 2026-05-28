@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import type { AnalyzeResponse } from "@deal-match/shared";
-import { analyzeNow, fastPath } from "@/lib/jobs";
+import { runnerAuthHeader, runnerBase } from "@/lib/runner";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 30;
 
 const signalsSchema = z.object({
   url: z.string().url(),
@@ -39,27 +38,21 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  const { signals, refresh } = parsed.data;
-
-  const cached = refresh ? null : await fastPath(signals);
-  if (cached) {
-    const res: AnalyzeResponse = {
-      jobId: "cached",
-      status: "ready",
-      result: cached,
-    };
-    return NextResponse.json(res);
-  }
 
   try {
-    const result = await analyzeNow(signals);
-    const res: AnalyzeResponse = { jobId: "sync", status: "ready", result };
-    return NextResponse.json(res);
+    const res = await fetch(`${runnerBase()}/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...runnerAuthHeader() },
+      body: JSON.stringify(parsed.data),
+    });
+    const data = await res.json();
+    return NextResponse.json(data, { status: res.status });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("analyze failed", err);
-    const res: AnalyzeResponse = { jobId: "sync", status: "error", error: message };
-    return NextResponse.json(res, { status: 500 });
+    return NextResponse.json(
+      { jobId: "error", status: "error", error: message },
+      { status: 502 },
+    );
   }
 }
 
