@@ -20,7 +20,10 @@ const signalsSchema = z.object({
   pageTextSnippet: z.string().optional(),
 });
 
-const bodySchema = z.object({ signals: signalsSchema });
+const bodySchema = z.object({
+  signals: signalsSchema,
+  refresh: z.boolean().optional(),
+});
 
 export async function POST(req: NextRequest) {
   let body: unknown;
@@ -36,9 +39,9 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  const { signals } = parsed.data;
+  const { signals, refresh } = parsed.data;
 
-  const cached = await fastPath(signals);
+  const cached = refresh ? null : await fastPath(signals);
   if (cached) {
     const res: AnalyzeResponse = {
       jobId: "cached",

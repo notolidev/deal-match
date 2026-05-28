@@ -8,14 +8,14 @@ const API_BASE = __API_BASE__;
 const LATEST_KEY = "deal-match:latest";
 
 type Message =
-  | { type: "analyze"; signals: ProductSignals }
+  | { type: "analyze"; signals: ProductSignals; refresh?: boolean }
   | { type: "set-latest"; url: string; result: unknown }
   | { type: "get-latest" };
 
 chrome.runtime.onMessage.addListener(
   (msg: Message, _sender, sendResponse) => {
     if (msg.type === "analyze") {
-      const body: AnalyzeRequest = { signals: msg.signals };
+      const body: AnalyzeRequest = { signals: msg.signals, refresh: msg.refresh };
       fetch(`${API_BASE}/api/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

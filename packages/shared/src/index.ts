@@ -16,6 +16,8 @@ export interface ProductSignals {
 
 export interface AnalyzeRequest {
   signals: ProductSignals;
+  /** Skip the cache and force a fresh analysis (used by "Re-analyse"). */
+  refresh?: boolean;
 }
 
 export interface PriceObservation {

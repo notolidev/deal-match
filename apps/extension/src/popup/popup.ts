@@ -61,10 +61,12 @@ async function init() {
   const button = document.getElementById("analyse") as HTMLButtonElement;
   const tab = await activeTab();
 
+  let refresh = false;
   chrome.runtime.sendMessage({ type: "get-latest" }, (entry: LatestEntry | null) => {
     if (entry && tab?.url && entry.url === tab.url) {
       root.innerHTML = renderResult(entry.result);
       button.textContent = "Re-analyse this page";
+      refresh = true; // already have a result for this page — force a fresh run
     } else {
       root.innerHTML =
         '<p class="empty">Click below to check whether this is a good deal.</p>';
@@ -74,7 +76,7 @@ async function init() {
 
   button.addEventListener("click", () => {
     if (!tab?.id) return;
-    chrome.tabs.sendMessage(tab.id, { type: "start-analysis" });
+    chrome.tabs.sendMessage(tab.id, { type: "start-analysis", refresh });
     window.close();
   });
 }

@@ -4,16 +4,18 @@ import { mountBadge, type BadgeHandle } from "./badge";
 
 let badge: BadgeHandle | null = null;
 
-chrome.runtime.onMessage.addListener((msg: { type?: string }, _sender, sendResponse) => {
-  if (msg?.type === "start-analysis") {
-    if (window.top !== window.self) return false; // skip iframes
-    void startAnalysis();
-    sendResponse({ ok: true });
-  }
-  return false;
-});
+chrome.runtime.onMessage.addListener(
+  (msg: { type?: string; refresh?: boolean }, _sender, sendResponse) => {
+    if (msg?.type === "start-analysis") {
+      if (window.top !== window.self) return false; // skip iframes
+      void startAnalysis(msg.refresh);
+      sendResponse({ ok: true });
+    }
+    return false;
+  },
+);
 
-async function startAnalysis() {
+async function startAnalysis(refresh?: boolean) {
   const signals = extractProductSignals();
   if (!badge) badge = mountBadge();
   if (!signals) {
@@ -23,7 +25,7 @@ async function startAnalysis() {
   badge.setPending();
 
   chrome.runtime.sendMessage(
-    { type: "analyze", signals },
+    { type: "analyze", signals, refresh },
     (response?: AnalyzeResponse | { error: string }) => {
       if (chrome.runtime.lastError) {
         badge!.setError("bg unavailable");
