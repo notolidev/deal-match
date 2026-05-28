@@ -97,8 +97,9 @@ export async function search(
 ): Promise<SearchHit[]> {
   if (!signals.title) return [];
 
+  const query = await buildQuery(signals);
   const url = new URL("/search", SEARXNG_URL);
-  url.searchParams.set("q", await buildQuery(signals));
+  url.searchParams.set("q", query);
   url.searchParams.set("format", "json");
   url.searchParams.set("categories", "general");
 
@@ -113,7 +114,7 @@ export async function search(
     return [];
   }
 
-  return results
+  const hits = results
     .filter((r): r is SearxResult & { url: string } => Boolean(r.url))
     .map((r) => ({
       title: r.title ?? "",
@@ -127,6 +128,10 @@ export async function search(
       } catch {
         return false;
       }
-    })
-    .slice(0, limit);
+    });
+
+  console.log(
+    `[search] query=${JSON.stringify(query)} searxng=${results.length} retailer-hits=${hits.length}`,
+  );
+  return hits.slice(0, limit);
 }

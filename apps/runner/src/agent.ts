@@ -40,6 +40,9 @@ export async function findDeals(
     const limit = pLimit(PARALLEL);
     const sameHost = hostname(signals.url);
     const candidates = hits.filter((h) => hostname(h.url) !== sameHost);
+    console.log(
+      `[agent] candidates=${candidates.length}: ${candidates.map((c) => hostname(c.url)).join(", ")}`,
+    );
 
     const extractions = await Promise.all(
       candidates.map((hit) =>
@@ -56,6 +59,9 @@ export async function findDeals(
 
     const now = new Date().toISOString();
     for (const { hit, ex } of extractions) {
+      console.log(
+        `[agent] ${hostname(hit.url)} matches=${ex.matches} price=${ex.price ?? "?"} ${ex.reason ?? ""}`,
+      );
       if (!ex.matches || ex.price == null) continue;
       observations.push({
         retailer: hostname(hit.url),
