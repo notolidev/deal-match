@@ -15,32 +15,46 @@ interface SearxResult {
   content?: string;
 }
 
-// Match known retailers by name as a domain label, so region TLDs
-// (amazon.co.uk, currys.co.uk, ebay.de, …) are all accepted.
-const RETAILER_NAMES = [
-  "amazon",
-  "ebay",
-  "walmart",
-  "bestbuy",
-  "target",
-  "newegg",
-  "bhphotovideo",
-  "costco",
-  "homedepot",
-  "argos",
-  "currys",
-  "johnlewis",
-  "very",
-  "ao",
-  "screwfix",
-  "ebuyer",
-  "overclockers",
-  "scan",
-  "box",
-  "appliancesdirect",
-  "richersounds",
+// Rather than allowlist retailers (brittle, misses brand stores and regional
+// shops), drop only obvious non-sellers — search engines, social, forums,
+// encyclopaedias, review sites, and price-comparison aggregators. The LLM
+// extraction then judges whether each remaining page is the same product
+// with a real, buyable price.
+const BLOCKED_NAMES = [
+  "google",
+  "bing",
+  "duckduckgo",
+  "youtube",
+  "youtu",
+  "reddit",
+  "quora",
+  "pinterest",
+  "facebook",
+  "instagram",
+  "twitter",
+  "tiktok",
+  "linkedin",
+  "wikipedia",
+  "fandom",
+  "pricerunner",
+  "idealo",
+  "kelkoo",
+  "pricespy",
+  "camelcamelcamel",
+  "shopzilla",
+  "techradar",
+  "tomsguide",
+  "tomshardware",
+  "cnet",
+  "theverge",
+  "engadget",
+  "wirecutter",
+  "trustedreviews",
+  "pcmag",
+  "gizmodo",
+  "digitaltrends",
 ];
-const RETAILER_RE = new RegExp(`(^|\\.)(${RETAILER_NAMES.join("|")})\\.`, "i");
+const BLOCKED_RE = new RegExp(`(^|\\.)(${BLOCKED_NAMES.join("|")})\\.`, "i");
 
 /**
  * Marketplace titles are keyword-stuffed feature dumps ("acer USB C Hub,
@@ -124,14 +138,14 @@ export async function search(
     .filter((h) => {
       try {
         const host = new URL(h.url).hostname.replace(/^www\./, "");
-        return RETAILER_RE.test(host);
+        return !BLOCKED_RE.test(host);
       } catch {
         return false;
       }
     });
 
   console.log(
-    `[search] query=${JSON.stringify(query)} searxng=${results.length} retailer-hits=${hits.length}`,
+    `[search] query=${JSON.stringify(query)} searxng=${results.length} kept=${hits.length}`,
   );
   return hits.slice(0, limit);
 }
