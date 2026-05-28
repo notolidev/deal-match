@@ -1,6 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type { BrowserContext } from "playwright";
+import { LLM_ENABLED, MODEL, anthropic } from "./llm.js";
 
 const extractionSchema = z.object({
   matches: z.boolean(),
@@ -12,14 +12,6 @@ const extractionSchema = z.object({
   reason: z.string().max(160).optional(),
 });
 
-const MODEL = "claude-haiku-4-5";
-
-let client: Anthropic | null = null;
-function anthropic(): Anthropic {
-  if (!client) client = new Anthropic();
-  return client;
-}
-
 export type Extraction = z.infer<typeof extractionSchema>;
 
 interface ExtractInput {
@@ -28,8 +20,6 @@ interface ExtractInput {
   jsonLd: unknown[];
   target: { title?: string; brand?: string; upc?: string };
 }
-
-const LLM_ENABLED = !!process.env.ANTHROPIC_API_KEY;
 
 /**
  * Fetches a candidate page in the shared browser context, extracts
