@@ -63,7 +63,7 @@ const BLOCKED_RE = new RegExp(`(^|\\.)(${BLOCKED_NAMES.join("|")})\\.`, "i");
  * (brand + product + model/SKU), falling back to a heuristic if the LLM is
  * unavailable.
  */
-async function buildQuery(signals: ProductSignals): Promise<string> {
+export async function buildQuery(signals: ProductSignals): Promise<string> {
   const fallback = heuristicQuery(signals.title ?? "", signals.brand);
   if (!LLM_ENABLED || !signals.title) return fallback;
   try {
@@ -97,12 +97,10 @@ function heuristicQuery(title: string, brand: string | undefined): string {
  * search-engine scraping). Results are filtered to known retailer domains.
  */
 export async function search(
-  signals: ProductSignals,
+  query: string,
   limit = 8,
 ): Promise<SearchHit[]> {
-  if (!signals.title) return [];
-
-  const query = await buildQuery(signals);
+  if (!query) return [];
 
   // Fetch two result pages in parallel for better recall, then dedupe by URL.
   const pages = await Promise.all(

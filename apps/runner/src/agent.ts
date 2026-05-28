@@ -1,8 +1,9 @@
 import pLimit from "p-limit";
 import type { PriceObservation, ProductSignals } from "@deal-match/shared";
 import { withContext } from "./browser.js";
-import { search } from "./search.js";
+import { buildQuery, search } from "./search.js";
 import { extractFromPage, extractFromText } from "./extract.js";
+import { SERPER_ENABLED, filterOffers, shoppingSearch } from "./shopping.js";
 
 const MAX_CANDIDATES = 6;
 const PARALLEL = 4;
@@ -52,12 +53,39 @@ export async function findDeals(
       });
     }
 
-    // 2. Search the open web for the same product across other retailers.
+    // 2. Find the same product at other retailers.
     if (!signals.title) return observations;
-    const hits = await search(signals, MAX_CANDIDATES);
-
-    const limit = pLimit(PARALLEL);
+    const now = new Date().toISOString();
     const sameHost = hostname(signals.url);
+    const targetCurrency = signals.currency?.toUpperCase();
+    const query = await buildQuery(signals);
+
+    // Preferred: Google Shopping via Serper — structured retailer + price data,
+    // no page visits (so no datacenter-IP bot blocks). One LLM pass filters out
+    // different models/variants.
+    if (SERPER_ENABLED) {
+      const offers = await shoppingSearch(query, signals.currency);
+      const matched = await filterOffers(target, offers);
+      console.log(`[agent] shopping offers=${offers.length} matched=${matched.length}`);
+      for (const o of matched) {
+        if (hostname(o.link) === sameHost) continue;
+        if (targetCurrency && o.currency.toUpperCase() !== targetCurrency) continue;
+        observations.push({
+          retailer: o.retailer,
+          url: o.link,
+          price: o.price,
+          currency: o.currency,
+          observedAt: now,
+          inStock: true,
+        });
+      }
+      return observations;
+    }
+
+    // Fallback: SearXNG + per-page LLM extraction (works without a Serper key,
+    // but recall is limited by retailer bot blocks).
+    const hits = await search(query, MAX_CANDIDATES);
+    const limit = pLimit(PARALLEL);
     const candidates = hits.filter((h) => hostname(h.url) !== sameHost);
     console.log(
       `[agent] candidates=${candidates.length}: ${candidates.map((c) => hostname(c.url)).join(", ")}`,
@@ -72,15 +100,11 @@ export async function findDeals(
       ),
     );
 
-    const now = new Date().toISOString();
-    const targetCurrency = signals.currency?.toUpperCase();
     for (const { hit, ex } of extractions) {
       console.log(
         `[agent] ${hostname(hit.url)} matches=${ex.matches} price=${ex.price ?? "?"} ${ex.reason ?? ""}`,
       );
       if (!ex.matches || ex.price == null || ex.price <= 0) continue;
-      // Drop foreign-currency listings — comparing €23 to £22 is meaningless
-      // and surfaces out-of-region shops as bogus "deals".
       if (ex.currency && targetCurrency && ex.currency.toUpperCase() !== targetCurrency) {
         console.log(`[agent] skip ${hostname(hit.url)}: ${ex.currency} != ${targetCurrency}`);
         continue;
