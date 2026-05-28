@@ -56,6 +56,21 @@ function parseJsonLdNodes(): JsonLdProduct[] {
   return out;
 }
 
+function currencyFromSymbol(sym: string): string | undefined {
+  switch (sym) {
+    case "£":
+      return "GBP";
+    case "€":
+      return "EUR";
+    case "¥":
+      return "JPY";
+    case "$":
+      return "USD";
+    default:
+      return undefined;
+  }
+}
+
 function firstOffer(p: JsonLdProduct) {
   if (!p.offers) return undefined;
   return Array.isArray(p.offers) ? p.offers[0] : p.offers;
@@ -125,8 +140,18 @@ export function extractProductSignals(): ProductSignals | null {
   // Heuristic price-like visible string fallback.
   if (price == null) {
     const text = document.body?.innerText?.slice(0, 5000) ?? "";
-    const match = text.match(/[$€£¥]\s?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?/);
-    if (match) price = parsePrice(match[0]);
+    const match = text.match(/([$€£¥])\s?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?/);
+    if (match) {
+      price = parsePrice(match[0]);
+      currency ??= currencyFromSymbol(match[1]);
+    }
+  }
+
+  // Last resort: infer currency from a price symbol on the page, so we don't
+  // wrongly fall back to USD downstream.
+  if (currency == null) {
+    const sym = document.body?.innerText?.match(/[£€¥$]/)?.[0];
+    if (sym) currency = currencyFromSymbol(sym);
   }
 
   if (!title && !price && !ld) return null;
