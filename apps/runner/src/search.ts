@@ -33,9 +33,17 @@ const RETAILER_NAMES = [
 ];
 const RETAILER_RE = new RegExp(`(^|\\.)(${RETAILER_NAMES.join("|")})\\.`, "i");
 
+/**
+ * Marketplace titles are often keyword-stuffed ("acer USB C Hub, 7IN1 USB-C
+ * to 4K HDMI, 2×USB 3.0, …") — searching the whole thing matches nothing.
+ * Keep the first clause and cap the length to a sane product query.
+ */
 function buildQuery(title: string, brand: string | undefined): string {
-  const q = brand ? `${brand} ${title}` : title;
-  return `${q} price`;
+  let core = title.split(/[,|·•]/)[0].trim();
+  const words = core.split(/\s+/);
+  if (words.length > 8) core = words.slice(0, 8).join(" ");
+  const hasBrand = brand && core.toLowerCase().includes(brand.toLowerCase());
+  return brand && !hasBrand ? `${brand} ${core}` : core;
 }
 
 /**
