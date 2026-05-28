@@ -4,7 +4,7 @@ import type {
   PriceObservation,
   ProductSignals,
 } from "@deal-match/shared";
-import { LLM_ENABLED, MODEL, anthropic } from "./llm.js";
+import { LLM_ENABLED, chatJson } from "./llm.js";
 
 const verdictSchema = z.object({
   verdict: z.enum(["buy", "wait", "neutral"]),
@@ -57,48 +57,36 @@ export async function synthesizeVerdict(
   if (!LLM_ENABLED) return fallback;
 
   try {
-    const msg = await anthropic().messages.create({
-      model: MODEL,
-      max_tokens: 512,
-      system:
-        "You are a deal-evaluation assistant. Given a current price and a comparison table of the same product at other retailers, decide whether the user should buy now, wait, or stay neutral. Keep reasoning concise and consumer-friendly. Always respond by calling the report_verdict tool.",
-      tools: [
-        {
-          name: "report_verdict",
-          description: "Report the buy/wait/neutral verdict for the product.",
-          input_schema: {
-            type: "object",
-            properties: {
-              verdict: { type: "string", enum: ["buy", "wait", "neutral"] },
-              confidence: { type: "number", minimum: 0, maximum: 1 },
-              oneLineReason: { type: "string" },
-              waitForEvent: { type: "string" },
-            },
-            required: ["verdict", "confidence", "oneLineReason"],
+    const result = await chatJson(
+      "You are a deal-evaluation assistant. Given a current price and a comparison table of the same product at other retailers, decide whether the user should buy now, wait, or stay neutral. Keep reasoning concise and consumer-friendly.",
+      JSON.stringify({
+        product: {
+          title: signals.title,
+          brand: signals.brand,
+          currentPrice,
+          currency,
+          url: signals.url,
+        },
+        observations,
+      }),
+      {
+        name: "report_verdict",
+        description: "Report the buy/wait/neutral verdict for the product.",
+        parameters: {
+          type: "object",
+          properties: {
+            verdict: { type: "string", enum: ["buy", "wait", "neutral"] },
+            confidence: { type: "number", minimum: 0, maximum: 1 },
+            oneLineReason: { type: "string" },
+            waitForEvent: { type: "string" },
           },
+          required: ["verdict", "confidence", "oneLineReason"],
         },
-      ],
-      tool_choice: { type: "tool", name: "report_verdict" },
-      messages: [
-        {
-          role: "user",
-          content: JSON.stringify({
-            product: {
-              title: signals.title,
-              brand: signals.brand,
-              currentPrice,
-              currency,
-              url: signals.url,
-            },
-            observations,
-          }),
-        },
-      ],
-    });
+      },
+    );
 
-    const toolUse = msg.content.find((b) => b.type === "tool_use");
-    if (!toolUse || toolUse.type !== "tool_use") return fallback;
-    const object = verdictSchema.parse(toolUse.input);
+    if (result == null) return fallback;
+    const object = verdictSchema.parse(result);
     return {
       ...fallback,
       verdict: object.verdict,

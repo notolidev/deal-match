@@ -1,6 +1,31 @@
 import { z } from "zod";
 import type { BrowserContext } from "playwright";
-import { LLM_ENABLED, MODEL, anthropic } from "./llm.js";
+import { LLM_ENABLED, chatJson } from "./llm.js";
+
+const EXTRACT_SYSTEM =
+  "You decide whether a web page is a RETAILER PRODUCT LISTING where the target product can be BOUGHT RIGHT NOW, and extract its price. " +
+  "Set matches=true ONLY if BOTH hold: (1) it is the same product — reject different models, variants, sizes, or bundles; and (2) the page is a shop's product/checkout page where you can purchase it (a current listed price with an add-to-cart/buy action and availability). " +
+  "Set matches=false for reviews, blog posts, news, articles, forums, videos, how-to/guide pages, and price-comparison or aggregator pages — anything that merely mentions the product or a price without selling it. When unsure, return matches=false. " +
+  "PRICE: extract the price to buy ONE unit at the standard single quantity. IGNORE multi-buy, bulk, 'from N pieces'/'each when you buy N', subscription, trade, student, or membership prices, and ignore ex-VAT prices when an inc-VAT price is shown. If only a multi-buy price is available, use the per-single-unit price.";
+
+const REPORT_MATCH_TOOL = {
+  name: "report_match",
+  description:
+    "Report whether the candidate listing matches the target product and its price.",
+  parameters: {
+    type: "object",
+    properties: {
+      matches: { type: "boolean" },
+      confidence: { type: "number", minimum: 0, maximum: 1 },
+      productTitle: { type: "string" },
+      price: { type: "number" },
+      currency: { type: "string" },
+      inStock: { type: "boolean" },
+      reason: { type: "string" },
+    },
+    required: ["matches", "confidence"],
+  },
+};
 
 const extractionSchema = z.object({
   matches: z.boolean(),
@@ -94,54 +119,18 @@ async function classify(input: ExtractInput): Promise<Extraction> {
     return heuristicExtract({ url, pageText, jsonLd, target });
   }
 
-  {
-    const msg = await anthropic().messages.create({
-      model: MODEL,
-      max_tokens: 512,
-      system:
-        "You decide whether a web page is a RETAILER PRODUCT LISTING where the target product can be BOUGHT RIGHT NOW, and extract its price. " +
-        "Set matches=true ONLY if BOTH hold: (1) it is the same product — reject different models, variants, sizes, or bundles; and (2) the page is a shop's product/checkout page where you can purchase it (a current listed price with an add-to-cart/buy action and availability). " +
-        "Set matches=false for reviews, blog posts, news, articles, forums, videos, how-to/guide pages, and price-comparison or aggregator pages — anything that merely mentions the product or a price without selling it. When unsure, return matches=false. " +
-        "PRICE: extract the price to buy ONE unit at the standard single quantity. IGNORE multi-buy, bulk, 'from N pieces'/'each when you buy N', subscription, trade, student, or membership prices, and ignore ex-VAT prices when an inc-VAT price is shown. If only a multi-buy price is available, use the per-single-unit price. " +
-        "Always respond by calling the report_match tool.",
-      tools: [
-        {
-          name: "report_match",
-          description:
-            "Report whether the candidate listing matches the target product and its price.",
-          input_schema: {
-            type: "object",
-            properties: {
-              matches: { type: "boolean" },
-              confidence: { type: "number", minimum: 0, maximum: 1 },
-              productTitle: { type: "string" },
-              price: { type: "number" },
-              currency: { type: "string" },
-              inStock: { type: "boolean" },
-              reason: { type: "string" },
-            },
-            required: ["matches", "confidence"],
-          },
-        },
-      ],
-      tool_choice: { type: "tool", name: "report_match" },
-      messages: [
-        {
-          role: "user",
-          content: JSON.stringify({
-            target,
-            candidate: { url, pageText: pageText.slice(0, 4000), jsonLd },
-          }),
-        },
-      ],
-    });
-
-    const toolUse = msg.content.find((b) => b.type === "tool_use");
-    if (!toolUse || toolUse.type !== "tool_use") {
-      return heuristicExtract({ url, pageText, jsonLd, target });
-    }
-    return extractionSchema.parse(toolUse.input);
+  const result = await chatJson(
+    EXTRACT_SYSTEM,
+    JSON.stringify({
+      target,
+      candidate: { url, pageText: pageText.slice(0, 4000), jsonLd },
+    }),
+    REPORT_MATCH_TOOL,
+  );
+  if (result == null) {
+    return heuristicExtract({ url, pageText, jsonLd, target });
   }
+  return extractionSchema.parse(result);
 }
 
 function heuristicExtract(input: ExtractInput): Extraction {

@@ -1,5 +1,5 @@
 import type { ProductSignals } from "@deal-match/shared";
-import { LLM_ENABLED, MODEL, anthropic } from "./llm.js";
+import { LLM_ENABLED, chatText } from "./llm.js";
 
 export interface SearchHit {
   title: string;
@@ -67,25 +67,16 @@ async function buildQuery(signals: ProductSignals): Promise<string> {
   const fallback = heuristicQuery(signals.title ?? "", signals.brand);
   if (!LLM_ENABLED || !signals.title) return fallback;
   try {
-    const msg = await anthropic().messages.create({
-      model: MODEL,
-      max_tokens: 40,
-      system:
-        "Turn a noisy e-commerce product title into a short web search query that finds the SAME product at other retailers. Include the brand, the product type, and any model or SKU number. Drop marketing adjectives, compatibility lists, and feature specs. Reply with ONLY the query — no quotes, no preamble.",
-      messages: [
-        {
-          role: "user",
-          content: JSON.stringify({
-            title: signals.title,
-            brand: signals.brand,
-            sku: signals.sku,
-            gtin: signals.gtin ?? signals.upc,
-          }),
-        },
-      ],
-    });
-    const block = msg.content.find((b) => b.type === "text");
-    const query = block && block.type === "text" ? block.text.trim() : "";
+    const query = await chatText(
+      "Turn a noisy e-commerce product title into a short web search query that finds the SAME product at other retailers. Include the brand, the product type, and any model or SKU number. Drop marketing adjectives, compatibility lists, and feature specs. Reply with ONLY the query — no quotes, no preamble.",
+      JSON.stringify({
+        title: signals.title,
+        brand: signals.brand,
+        sku: signals.sku,
+        gtin: signals.gtin ?? signals.upc,
+      }),
+      40,
+    );
     return query || fallback;
   } catch {
     return fallback;
