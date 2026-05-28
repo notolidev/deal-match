@@ -179,3 +179,56 @@ function hostname(url: string): string {
     return "unknown";
   }
 }
+
+/**
+ * Google Shopping links route through google.com. Resolve a direct retailer
+ * URL by web-searching "<retailer> <product>" and taking the top organic
+ * result on that retailer's own domain. Reliable (structured API, no Google
+ * page scraping). Returns null if nothing suitable is found.
+ */
+export async function resolveDirectLink(
+  retailer: string,
+  productTitle: string,
+  targetCurrency?: string,
+): Promise<string | null> {
+  const key = process.env.SERPER_API_KEY;
+  if (!key) return null;
+
+  const region =
+    (targetCurrency && REGION_BY_CURRENCY[targetCurrency.toUpperCase()]) ||
+    REGION_BY_CURRENCY.USD;
+
+  try {
+    const res = await fetch("https://google.serper.dev/search", {
+      method: "POST",
+      headers: { "X-API-KEY": key, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        q: `${retailer} ${productTitle}`,
+        gl: region.gl,
+        location: region.location,
+        num: 8,
+      }),
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!res.ok) throw new Error(`serper search responded ${res.status}`);
+    const data = (await res.json()) as { organic?: { link?: string }[] };
+    const organic = data.organic ?? [];
+
+    const slug = retailer.toLowerCase().replace(/[^a-z0-9]/g, "");
+    // Prefer a result whose domain label matches the retailer name.
+    for (const r of organic) {
+      if (!r.link) continue;
+      try {
+        const host = new URL(r.link).hostname.replace(/^www\./, "");
+        const label = host.split(".")[0].replace(/[^a-z0-9]/g, "");
+        if (label.length >= 4 && slug.includes(label)) return r.link;
+      } catch {
+        /* ignore */
+      }
+    }
+    return null;
+  } catch (err) {
+    console.error("resolveDirectLink failed", err);
+    return null;
+  }
+}

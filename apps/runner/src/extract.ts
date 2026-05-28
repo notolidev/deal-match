@@ -114,60 +114,6 @@ export async function extractFromText(
   }
 }
 
-/**
- * Google Shopping links route through google.com. Open the page and pull the
- * real merchant URL from the "Visit site" link so users land on the retailer
- * directly. Best-effort: returns the original URL if Google blocks us or the
- * markup doesn't yield a clean destination.
- */
-export async function resolveDirectLink(
-  ctx: BrowserContext,
-  url: string,
-): Promise<string> {
-  const page = await ctx.newPage();
-  try {
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15_000 });
-    const direct = await page.evaluate(() => {
-      const anchors = Array.from(
-        document.querySelectorAll<HTMLAnchorElement>("a[href]"),
-      );
-      const visit = anchors.find((a) =>
-        /visit (site|store)/i.test(a.textContent || ""),
-      );
-      const ordered = visit ? [visit, ...anchors] : anchors;
-      const isGoogle = (host: string) =>
-        /(^|\.)(google\.|gstatic\.|googleusercontent\.)/.test(host);
-      for (const a of ordered) {
-        const h = a.getAttribute("href") || "";
-        if (!h) continue;
-        if (h.includes("/url?")) {
-          try {
-            const qs = h.slice(h.indexOf("?") + 1);
-            const params = new URLSearchParams(qs);
-            const q = params.get("q") || params.get("url");
-            if (q && !isGoogle(new URL(q).hostname)) return q;
-          } catch {
-            /* ignore */
-          }
-        }
-        if (/^https?:\/\//.test(h)) {
-          try {
-            if (!isGoogle(new URL(h).hostname)) return h;
-          } catch {
-            /* ignore */
-          }
-        }
-      }
-      return null;
-    });
-    return direct || url;
-  } catch {
-    return url;
-  } finally {
-    await page.close().catch(() => {});
-  }
-}
-
 async function classify(input: ExtractInput): Promise<Extraction> {
   const { url, pageText, jsonLd, target } = input;
   if (!LLM_ENABLED) {

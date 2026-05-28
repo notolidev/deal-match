@@ -2,8 +2,13 @@ import pLimit from "p-limit";
 import type { PriceObservation, ProductSignals } from "@deal-match/shared";
 import { withContext } from "./browser.js";
 import { buildQuery, search } from "./search.js";
-import { extractFromPage, extractFromText, resolveDirectLink } from "./extract.js";
-import { SERPER_ENABLED, filterOffers, shoppingSearch } from "./shopping.js";
+import { extractFromPage, extractFromText } from "./extract.js";
+import {
+  SERPER_ENABLED,
+  filterOffers,
+  resolveDirectLink,
+  shoppingSearch,
+} from "./shopping.js";
 
 const MAX_CANDIDATES = 6;
 const PARALLEL = 4;
@@ -91,13 +96,13 @@ export async function findDeals(
       }
 
       // Resolve the cheapest NEW offer (the "View deal" target) from its
-      // Google Shopping link to the real retailer URL.
+      // Google Shopping link to the real retailer URL via a web search.
       const cta = observations
         .filter((o) => (o.condition ?? "new") === "new" && hostname(o.url) !== sameHost)
         .sort((a, b) => a.price - b.price)[0];
       if (cta && /(^|\.)google\./.test(hostname(cta.url))) {
-        const direct = await resolveDirectLink(ctx, cta.url);
-        if (direct !== cta.url) {
+        const direct = await resolveDirectLink(cta.retailer, signals.title, signals.currency);
+        if (direct) {
           console.log(`[agent] resolved direct ${hostname(direct)} for ${cta.retailer}`);
           cta.url = direct;
         }
