@@ -4,7 +4,7 @@ import { withContext } from "./browser.js";
 import { search } from "./search.js";
 import { extractFromPage } from "./extract.js";
 
-const MAX_CANDIDATES = 6;
+const MAX_CANDIDATES = 10;
 const PARALLEL = 4;
 
 function hostname(url: string): string {

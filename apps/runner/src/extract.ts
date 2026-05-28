@@ -37,7 +37,7 @@ export async function extractFromPage(
 ): Promise<Extraction> {
   const page = await ctx.newPage();
   try {
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 12_000 });
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 18_000 });
     const { pageText, jsonLd } = await page.evaluate(() => {
       const lds: unknown[] = [];
       document
