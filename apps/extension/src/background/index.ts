@@ -9,7 +9,13 @@ const LATEST_KEY = "deal-match:latest";
 
 type Message =
   | { type: "analyze"; signals: ProductSignals; refresh?: boolean }
-  | { type: "set-latest"; url: string; result: unknown }
+  | {
+      type: "set-latest";
+      url: string;
+      result: unknown;
+      title?: string;
+      imageUrl?: string;
+    }
   | { type: "get-latest" };
 
 chrome.runtime.onMessage.addListener(
@@ -29,7 +35,13 @@ chrome.runtime.onMessage.addListener(
 
     if (msg.type === "set-latest") {
       chrome.storage.session.set({
-        [LATEST_KEY]: { url: msg.url, result: msg.result, at: Date.now() },
+        [LATEST_KEY]: {
+          url: msg.url,
+          result: msg.result,
+          title: msg.title,
+          imageUrl: msg.imageUrl,
+          at: Date.now(),
+        },
       });
       sendResponse({ ok: true });
       return false;

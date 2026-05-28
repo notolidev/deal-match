@@ -1,6 +1,7 @@
-import type { AnalysisResult, Verdict } from "@deal-match/shared";
+import type { AnalysisResult } from "@deal-match/shared";
+import { type CardMeta, type Tone, dealSummary, renderCard } from "../ui/card";
 
-const COLORS: Record<Verdict | "pending" | "error", string> = {
+const TONE_COLOR: Record<Tone | "pending" | "error", string> = {
   buy: "#1aa260",
   wait: "#d93025",
   neutral: "#b48a00",
@@ -8,44 +9,11 @@ const COLORS: Record<Verdict | "pending" | "error", string> = {
   error: "#777",
 };
 
-const LABELS: Record<Verdict | "pending" | "error", string> = {
-  buy: "Good deal",
-  wait: "Wait",
-  neutral: "Average",
-  pending: "Analyzing…",
-  error: "Unavailable",
-};
-
 export interface BadgeHandle {
   setPending(): void;
-  setResult(result: AnalysisResult): void;
+  setResult(result: AnalysisResult, meta?: CardMeta): void;
   setError(msg: string): void;
   destroy(): void;
-}
-
-function fmt(price: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency,
-    }).format(price);
-  } catch {
-    return `${currency} ${price.toFixed(2)}`;
-  }
-}
-
-function escape(s: string): string {
-  return s.replace(/[&<>"']/g, (c) =>
-    c === "&"
-      ? "&amp;"
-      : c === "<"
-        ? "&lt;"
-        : c === ">"
-          ? "&gt;"
-          : c === '"'
-            ? "&quot;"
-            : "&#39;",
-  );
 }
 
 export function mountBadge(): BadgeHandle {
@@ -60,57 +28,66 @@ export function mountBadge(): BadgeHandle {
   const shadow = host.attachShadow({ mode: "closed" });
   const style = document.createElement("style");
   style.textContent = `
-    .wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+    * { box-sizing: border-box; }
+    .wrap {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+    }
     .badge {
-      font: 600 13px/1 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      color: #fff;
-      background: ${COLORS.pending};
-      padding: 8px 12px;
-      border-radius: 999px;
-      cursor: pointer;
+      font: 600 13px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: #fff; background: ${TONE_COLOR.pending};
+      padding: 9px 13px; border-radius: 999px; cursor: pointer;
       box-shadow: 0 4px 14px rgba(0,0,0,0.25);
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      user-select: none;
-      transition: background 200ms ease;
-      max-width: 360px;
+      display: inline-flex; align-items: center; gap: 7px;
+      user-select: none; transition: background 200ms ease; max-width: 360px;
     }
     .label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .dot { width: 8px; height: 8px; border-radius: 50%; background: #fff; opacity: 0.85; flex: none; }
     .badge.pending { cursor: default; }
     .badge.pending .dot { animation: pulse 1.2s ease-in-out infinite; }
     @keyframes pulse {
-      0%, 100% { opacity: 0.4; transform: scale(0.9); }
-      50%      { opacity: 1;   transform: scale(1.1); }
+      0%,100% { opacity: 0.4; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.1); }
     }
+
     .panel {
-      font: 400 13px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      color: #1a1a1a;
-      background: #fff;
-      width: 320px;
-      border-radius: 12px;
-      box-shadow: 0 8px 28px rgba(0,0,0,0.28);
-      padding: 14px 16px;
-      box-sizing: border-box;
-      display: none;
+      width: 340px; background: #fff; color: #16181d;
+      border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.22);
+      padding: 16px; display: none; overflow: hidden;
     }
     .panel.open { display: block; }
-    .panel .verdict {
-      font-weight: 700; text-transform: capitalize; font-size: 15px; margin-bottom: 2px;
+
+    .dm-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .dm-img { width: 44px; height: 44px; object-fit: contain; border-radius: 8px; background: #f4f5f7; flex: none; }
+    .dm-title { font-size: 13px; font-weight: 600; line-height: 1.35; color: #16181d;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+    .dm-headline { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+    .dm-headline.dm-buy { color: #1aa260; }
+    .dm-headline.dm-wait { color: #d93025; }
+    .dm-headline.dm-neutral { color: #b48a00; }
+    .dm-reason { margin: 4px 0 14px; font-size: 13px; line-height: 1.45; color: #5b6066; }
+
+    .dm-cta {
+      display: block; text-align: center; text-decoration: none;
+      background: #16181d; color: #fff; font-weight: 600; font-size: 13px;
+      padding: 11px 14px; border-radius: 10px; margin-bottom: 14px;
+      transition: background 150ms ease;
     }
-    .panel .verdict.buy { color: ${COLORS.buy}; }
-    .panel .verdict.wait { color: ${COLORS.wait}; }
-    .panel .verdict.neutral { color: ${COLORS.neutral}; }
-    .panel .reason { color: #444; margin: 0 0 10px; }
-    .panel .row {
-      display: flex; justify-content: space-between; gap: 12px;
-      padding: 6px 0; border-top: 1px solid #eee;
-    }
-    .panel .row.better { background: #f0faf3; margin: 0 -16px; padding: 6px 16px; }
-    .panel .retailer { color: #555; }
-    .panel .price a { color: #1558d6; text-decoration: none; }
-    .panel .price a:hover { text-decoration: underline; }
+    .dm-cta:hover { background: #000; }
+
+    .dm-prices { border-top: 1px solid #ecedef; }
+    .dm-row { display: flex; justify-content: space-between; align-items: center;
+      gap: 12px; padding: 9px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; }
+    .dm-row:last-child { border-bottom: none; }
+    .dm-row.dm-best { margin: 0 -16px; padding: 9px 16px; background: #f0faf3; }
+    .dm-retailer { color: #5b6066; }
+    .dm-price { font-weight: 600; display: inline-flex; align-items: center; gap: 7px; }
+    .dm-price a { color: #1558d6; text-decoration: none; }
+    .dm-price a:hover { text-decoration: underline; }
+    .dm-tag { background: #1aa260; color: #fff; font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 6px; border-radius: 5px; }
+    .dm-foot { margin-top: 12px; font-size: 11px; color: #9aa0a6; }
   `;
 
   const wrap = document.createElement("div");
@@ -121,7 +98,7 @@ export function mountBadge(): BadgeHandle {
 
   const el = document.createElement("div");
   el.className = "badge pending";
-  el.innerHTML = `<span class="dot"></span><span class="label">${LABELS.pending}</span>`;
+  el.innerHTML = `<span class="dot"></span><span class="label">Analysing…</span>`;
 
   wrap.append(panel, el);
   shadow.append(style, wrap);
@@ -129,31 +106,10 @@ export function mountBadge(): BadgeHandle {
 
   const label = el.querySelector<HTMLSpanElement>(".label")!;
 
-  function paint(state: Verdict | "pending" | "error", text?: string) {
-    el.classList.toggle("pending", state === "pending");
-    el.style.background = COLORS[state];
-    label.textContent = text ?? LABELS[state];
-  }
-
-  function renderPanel(r: AnalysisResult) {
-    const currency = r.currency ?? "USD";
-    const rows: string[] = [];
-    for (const obs of r.observations) {
-      const isBetter = r.betterDeal && obs.url === r.betterDeal.url;
-      rows.push(
-        `<div class="row${isBetter ? " better" : ""}">
-           <span class="retailer">${escape(obs.retailer)}</span>
-           <span class="price"><a href="${escape(obs.url)}" target="_blank" rel="noreferrer">${fmt(obs.price, obs.currency)}</a></span>
-         </div>`,
-      );
-    }
-    panel.innerHTML = `
-      <div class="verdict ${r.verdict}">${escape(r.verdict)}</div>
-      <p class="reason">${escape(r.oneLineReason)}</p>
-      ${r.currentPrice != null ? `<div class="row"><span class="retailer">Current price</span><span class="price">${fmt(r.currentPrice, currency)}</span></div>` : ""}
-      ${r.ninetyDayLow != null ? `<div class="row"><span class="retailer">Cheapest seen</span><span class="price">${fmt(r.ninetyDayLow, currency)}</span></div>` : ""}
-      ${rows.join("")}
-    `;
+  function paintPill(tone: Tone | "pending" | "error", text: string) {
+    el.classList.toggle("pending", tone === "pending");
+    el.style.background = TONE_COLOR[tone];
+    label.textContent = text;
   }
 
   el.addEventListener("click", () => {
@@ -164,14 +120,15 @@ export function mountBadge(): BadgeHandle {
   return {
     setPending: () => {
       panel.classList.remove("open");
-      paint("pending");
+      paintPill("pending", "Analysing…");
     },
-    setResult: (r) => {
-      paint(r.verdict, `${LABELS[r.verdict]} · ${r.oneLineReason}`.slice(0, 80));
-      renderPanel(r);
+    setResult: (r, meta) => {
+      const { tone, headline } = dealSummary(r);
+      paintPill(tone, headline);
+      panel.innerHTML = renderCard(r, meta);
       panel.classList.add("open");
     },
-    setError: (msg) => paint("error", `${LABELS.error} (${msg})`.slice(0, 80)),
+    setError: (msg) => paintPill("error", `Unavailable (${msg})`.slice(0, 80)),
     destroy: () => host.remove(),
   };
 }

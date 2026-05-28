@@ -36,11 +36,16 @@ async function startAnalysis(refresh?: boolean) {
         return;
       }
       if (response.status === "ready" && response.result) {
-        badge!.setResult(response.result);
+        badge!.setResult(response.result, {
+          title: signals.title,
+          imageUrl: signals.imageUrl,
+        });
         chrome.runtime.sendMessage({
           type: "set-latest",
           url: location.href,
           result: response.result,
+          title: signals.title,
+          imageUrl: signals.imageUrl,
         });
       } else if (response.status === "error") {
         badge!.setError(response.error ?? "error");

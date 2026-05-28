@@ -1,7 +1,9 @@
 :root {
   color-scheme: light dark;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
+
+* { box-sizing: border-box; }
 
 body {
   width: 340px;
@@ -12,66 +14,72 @@ body {
 }
 
 h1 {
-  font-size: 14px;
-  margin: 0 0 12px;
-  opacity: 0.7;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.verdict {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 999px;
   font-size: 12px;
-  font-weight: 700;
+  margin: 0 0 14px;
+  opacity: 0.55;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
 }
-
-.verdict.buy { background: #1aa260; color: #fff; }
-.verdict.wait { background: #d93025; color: #fff; }
-.verdict.neutral { background: #b48a00; color: #fff; }
-
-.reason {
-  margin: 10px 0 16px;
-  line-height: 1.4;
-  font-size: 14px;
-}
-
-.row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 8px 0;
-  border-top: 1px solid #1b1f24;
-  font-size: 13px;
-}
-
-.row .retailer { opacity: 0.85; }
-.row .price { font-weight: 600; }
-.row.better { color: #1aa260; }
 
 .empty {
   opacity: 0.6;
   font-size: 13px;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
-a { color: #8ab4f8; }
+.dm-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.dm-img {
+  width: 44px; height: 44px; object-fit: contain;
+  border-radius: 8px; background: #15181d; flex: none;
+}
+.dm-title {
+  font-size: 13px; font-weight: 600; line-height: 1.35; color: #f0f1f2;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.dm-headline { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+.dm-headline.dm-buy { color: #2ecc78; }
+.dm-headline.dm-wait { color: #ff6b5e; }
+.dm-headline.dm-neutral { color: #e0b341; }
+.dm-reason { margin: 4px 0 14px; font-size: 13px; line-height: 1.45; color: #9aa0a6; }
+
+.dm-cta {
+  display: block; text-align: center; text-decoration: none;
+  background: #2563eb; color: #fff; font-weight: 600; font-size: 13px;
+  padding: 11px 14px; border-radius: 10px; margin-bottom: 14px;
+  transition: background 150ms ease;
+}
+.dm-cta:hover { background: #1d4fd0; }
+
+.dm-prices { border-top: 1px solid #1b1f24; }
+.dm-row {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; padding: 9px 0; border-bottom: 1px solid #15181d; font-size: 13px;
+}
+.dm-row:last-child { border-bottom: none; }
+.dm-row.dm-best { margin: 0 -16px; padding: 9px 16px; background: rgba(46,204,120,0.10); }
+.dm-retailer { color: #9aa0a6; }
+.dm-price { font-weight: 600; display: inline-flex; align-items: center; gap: 7px; }
+.dm-price a { color: #8ab4f8; text-decoration: none; }
+.dm-price a:hover { text-decoration: underline; }
+.dm-tag {
+  background: #2ecc78; color: #04150c; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 6px; border-radius: 5px;
+}
+.dm-foot { margin-top: 12px; font-size: 11px; color: #6b7177; }
 
 #analyse {
   width: 100%;
   margin-top: 16px;
-  padding: 10px 12px;
+  padding: 11px 12px;
   border: none;
-  border-radius: 8px;
-  background: #1558d6;
+  border-radius: 10px;
+  background: #2563eb;
   color: #fff;
-  font: 600 14px/1 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font: 600 14px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   cursor: pointer;
   transition: background 150ms ease;
 }
 
-#analyse:hover { background: #1146ad; }
+#analyse:hover { background: #1d4fd0; }
