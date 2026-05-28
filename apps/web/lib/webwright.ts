@@ -30,7 +30,10 @@ export async function findDeals(
       body: JSON.stringify({ signals }),
     });
     if (!res.ok) {
-      throw new Error(`webwright runner failed: ${res.status}`);
+      const detail = await res.text().catch(() => "");
+      throw new Error(
+        `webwright runner failed: ${res.status} ${detail}`.trim(),
+      );
     }
     const data = (await res.json()) as { observations: PriceObservation[] };
     return data.observations;

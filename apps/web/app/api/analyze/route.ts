@@ -48,13 +48,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(res);
   }
 
-  const result = await analyzeNow(signals);
-  const res: AnalyzeResponse = {
-    jobId: "sync",
-    status: "ready",
-    result,
-  };
-  return NextResponse.json(res);
+  try {
+    const result = await analyzeNow(signals);
+    const res: AnalyzeResponse = { jobId: "sync", status: "ready", result };
+    return NextResponse.json(res);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("analyze failed", err);
+    const res: AnalyzeResponse = { jobId: "sync", status: "error", error: message };
+    return NextResponse.json(res, { status: 500 });
+  }
 }
 
 export function OPTIONS() {
