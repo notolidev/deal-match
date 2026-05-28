@@ -107,7 +107,7 @@ export async function filterOffers(
   if (!LLM_ENABLED) return offers;
 
   const result = await chatJson(
-    "You match shopping results to a target product. Return the indexes of offers that are the EXACT same product as the target — same model, variant, and size. Reject different models or generations, accessories, cases, bundles/multipacks, and listings for a different capacity/colour when the target specifies one. When unsure, exclude it.",
+    "You match shopping results to a target product. Identify the product primarily by its MODEL NUMBER or SKU (e.g. '34WR50QK-B', 'PL5124') — retailer titles vary in wording, so allow differences in phrasing, word order, and extra marketing text. Return the indexes of every offer that is the SAME product. Reject ONLY offers that are clearly a DIFFERENT model or generation, a different size/capacity/colour than the target specifies, an accessory (case, stand, cable, screen protector), or a multipack/bundle. If the model matches, include it.",
     JSON.stringify({
       target,
       offers: offers.map((o, i) => ({

@@ -68,8 +68,16 @@ export async function findDeals(
       const matched = await filterOffers(target, offers);
       console.log(`[agent] shopping offers=${offers.length} matched=${matched.length}`);
       for (const o of matched) {
-        if (hostname(o.link) === sameHost) continue;
-        if (targetCurrency && o.currency.toUpperCase() !== targetCurrency) continue;
+        const h = hostname(o.link);
+        if (h === sameHost) {
+          console.log(`[agent] drop same-host ${h} ${o.price}`);
+          continue;
+        }
+        if (targetCurrency && o.currency.toUpperCase() !== targetCurrency) {
+          console.log(`[agent] drop currency ${o.currency} ${h}`);
+          continue;
+        }
+        console.log(`[agent] add ${o.retailer} ${o.currency} ${o.price} (${h})`);
         observations.push({
           retailer: o.retailer,
           url: o.link,
