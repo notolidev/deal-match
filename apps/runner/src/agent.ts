@@ -2,7 +2,7 @@ import pLimit from "p-limit";
 import type { PriceObservation, ProductSignals } from "@deal-match/shared";
 import { withContext } from "./browser.js";
 import { search } from "./search.js";
-import { extractFromPage } from "./extract.js";
+import { extractFromPage, extractFromText } from "./extract.js";
 
 const MAX_CANDIDATES = 10;
 const PARALLEL = 4;
@@ -26,21 +26,20 @@ export async function findDeals(
       upc: signals.upc ?? signals.gtin,
     };
 
-    // 1. Observe the user's current page. Re-extract with the LLM so the
-    //    single-unit price is correct even when the page leads with a bulk /
-    //    multi-buy price; fall back to the content script's price if the
-    //    visit fails (e.g. bot-blocked).
+    // 1. Observe the user's current page. Use the page text the content script
+    //    captured in the user's real browser (the runner often can't load the
+    //    page itself due to bot blocks) and let the LLM pick the single-unit
+    //    price — so a bulk/multi-buy headline price doesn't win. Fall back to
+    //    the content script's own price if text isn't available.
     let currentPrice = signals.price;
     let currentCurrency = signals.currency;
-    try {
-      const self = await extractFromPage(ctx, signals.url, target);
-      if (self.matches && self.price != null) {
+    if (signals.pageTextSnippet) {
+      const self = await extractFromText(signals.url, signals.pageTextSnippet, target);
+      if (self.price != null) {
         currentPrice = self.price;
         currentCurrency = self.currency ?? currentCurrency;
       }
       console.log(`[agent] self ${hostname(signals.url)} price=${self.price ?? "?"} (signals=${signals.price ?? "?"})`);
-    } catch (err) {
-      console.warn("self-extract failed, using signals price", err);
     }
     if (currentPrice != null) {
       observations.push({

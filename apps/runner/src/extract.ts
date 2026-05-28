@@ -55,10 +55,46 @@ export async function extractFromPage(
       };
     });
 
-    if (!LLM_ENABLED) {
-      return heuristicExtract({ url, pageText, jsonLd, target });
-    }
+    return classify({ url, pageText, jsonLd, target });
+  } catch (err) {
+    return {
+      matches: false,
+      confidence: 0,
+      reason: err instanceof Error ? err.message : String(err),
+    };
+  } finally {
+    await page.close().catch(() => {});
+  }
+}
 
+/**
+ * Extracts the single-unit price from page text the *content script* already
+ * captured in the user's real browser. Used for the current page, which the
+ * runner often can't load itself (datacenter-IP bot blocks).
+ */
+export async function extractFromText(
+  url: string,
+  pageText: string,
+  target: ExtractInput["target"],
+): Promise<Extraction> {
+  try {
+    return await classify({ url, pageText, jsonLd: [], target });
+  } catch (err) {
+    return {
+      matches: false,
+      confidence: 0,
+      reason: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+async function classify(input: ExtractInput): Promise<Extraction> {
+  const { url, pageText, jsonLd, target } = input;
+  if (!LLM_ENABLED) {
+    return heuristicExtract({ url, pageText, jsonLd, target });
+  }
+
+  {
     const msg = await anthropic().messages.create({
       model: MODEL,
       max_tokens: 512,
@@ -105,14 +141,6 @@ export async function extractFromPage(
       return heuristicExtract({ url, pageText, jsonLd, target });
     }
     return extractionSchema.parse(toolUse.input);
-  } catch (err) {
-    return {
-      matches: false,
-      confidence: 0,
-      reason: err instanceof Error ? err.message : String(err),
-    };
-  } finally {
-    await page.close().catch(() => {});
   }
 }
 

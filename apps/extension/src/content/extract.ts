@@ -167,8 +167,9 @@ export function extractProductSignals(): ProductSignals | null {
     currency,
     imageUrl,
     jsonLd: ld,
-    pageTextSnippet: !title
-      ? document.body?.innerText?.slice(0, 800)
-      : undefined,
+    // Always include a generous chunk of the visible text. The runner uses it
+    // to extract the correct single-unit current price with the LLM (the page
+    // itself often can't be loaded server-side due to bot blocks).
+    pageTextSnippet: document.body?.innerText?.slice(0, 4000),
   };
 }
