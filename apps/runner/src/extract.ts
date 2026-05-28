@@ -63,7 +63,10 @@ export async function extractFromPage(
       model: MODEL,
       max_tokens: 512,
       system:
-        "You decide whether a product listing matches a target product, and extract its price. Be strict: reject near-matches with different model numbers or variants. Return matches=false if you can't be reasonably sure. Always respond by calling the report_match tool.",
+        "You decide whether a web page is a RETAILER PRODUCT LISTING where the target product can be BOUGHT RIGHT NOW, and extract its price. " +
+        "Set matches=true ONLY if BOTH hold: (1) it is the same product — reject different models, variants, sizes, or bundles; and (2) the page is a shop's product/checkout page where you can purchase it (a current listed price with an add-to-cart/buy action and availability). " +
+        "Set matches=false for reviews, blog posts, news, articles, forums, videos, how-to/guide pages, and price-comparison or aggregator pages — anything that merely mentions the product or a price without selling it. When unsure, return matches=false. " +
+        "Always respond by calling the report_match tool.",
       tools: [
         {
           name: "report_match",
