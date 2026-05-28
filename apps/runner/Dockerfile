@@ -1,5 +1,6 @@
 # Playwright base image: Node 22 + Chromium + system deps preinstalled.
-FROM mcr.microsoft.com/playwright:v1.48.0-noble
+# Must match the playwright version pinned in apps/runner/package.json.
+FROM mcr.microsoft.com/playwright:v1.60.0-noble
 
 ENV NODE_ENV=production \
     PNPM_HOME=/pnpm \
