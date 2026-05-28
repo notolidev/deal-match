@@ -25,7 +25,10 @@ export async function synthesizeVerdict(
     observations[0]?.price;
   const currency = signals.currency ?? observations[0]?.currency ?? "USD";
 
-  const sorted = [...observations].sort((a, b) => a.price - b.price);
+  // Only compare like-for-like: a used/refurbished listing isn't a fair
+  // "better deal" against a new current page.
+  const newObs = observations.filter((o) => (o.condition ?? "new") === "new");
+  const sorted = [...newObs].sort((a, b) => a.price - b.price);
   const cheapest = sorted[0];
   const betterDeal =
     cheapest && currentPrice && cheapest.price < currentPrice * 0.97

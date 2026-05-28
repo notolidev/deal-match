@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ProductCondition } from "@deal-match/shared";
 import { LLM_ENABLED, chatJson } from "./llm.js";
 
 export const SERPER_ENABLED = !!process.env.SERPER_API_KEY;
@@ -9,6 +10,7 @@ export interface ShoppingOffer {
   price: number;
   currency: string;
   link: string;
+  condition: ProductCondition;
 }
 
 interface SerperShoppingItem {
@@ -90,17 +92,26 @@ export async function shoppingSearch(
       price,
       currency: currency ?? targetCurrency ?? "USD",
       link: it.link,
+      condition: "new",
     });
   }
   console.log(`[shopping] query=${JSON.stringify(query)} gl=${gl} location=${JSON.stringify(location)} offers=${offers.length}`);
   return offers;
 }
 
-const filterSchema = z.object({ sameProductIndexes: z.array(z.number()) });
+const filterSchema = z.object({
+  matches: z.array(
+    z.object({
+      index: z.number(),
+      condition: z.enum(["new", "used", "refurbished"]),
+    }),
+  ),
+});
 
 /**
- * One LLM pass to keep only offers that are the SAME product as the target,
- * rejecting different models/variants/sizes, accessories, and bundles.
+ * One LLM pass to keep only offers that are the SAME product as the target
+ * (rejecting different models/variants/sizes, accessories, and bundles) and
+ * to classify each kept offer's condition (new / used / refurbished).
  */
 export async function filterOffers(
   target: { title?: string; brand?: string },
@@ -110,7 +121,7 @@ export async function filterOffers(
   if (!LLM_ENABLED) return offers;
 
   const result = await chatJson(
-    "You match shopping results to a target product. Identify the product primarily by its MODEL NUMBER or SKU (e.g. '34WR50QK-B', 'PL5124') — retailer titles vary in wording, so allow differences in phrasing, word order, and extra marketing text. Return the indexes of every offer that is the SAME product. Reject ONLY offers that are clearly a DIFFERENT model or generation, a different size/capacity/colour than the target specifies, an accessory (case, stand, cable, screen protector), or a multipack/bundle. If the model matches, include it.",
+    "You match shopping results to a target product. Identify the product primarily by its MODEL NUMBER or SKU (e.g. '34WR50QK-B', 'PL5124') — retailer titles vary in wording, so allow differences in phrasing, word order, and extra marketing text. Return every offer that is the SAME product. Reject ONLY offers that are clearly a DIFFERENT model or generation, a different size/capacity/colour than the target specifies, an accessory (case, stand, cable, screen protector), or a multipack/bundle. For each kept offer also classify its condition: 'used' (pre-owned, second-hand, for parts), 'refurbished' (refurbished, renewed, open-box), or 'new' (default for standard retail listings).",
     JSON.stringify({
       target,
       offers: offers.map((o, i) => ({
@@ -122,30 +133,43 @@ export async function filterOffers(
     }),
     {
       name: "report_matches",
-      description: "Report which offers are the same product as the target.",
+      description:
+        "Report which offers are the same product and each one's condition.",
       parameters: {
         type: "object",
         properties: {
-          sameProductIndexes: {
+          matches: {
             type: "array",
-            items: { type: "integer" },
-            description:
-              "0-based indexes of offers that are the exact same product as the target.",
+            items: {
+              type: "object",
+              properties: {
+                index: { type: "integer" },
+                condition: {
+                  type: "string",
+                  enum: ["new", "used", "refurbished"],
+                },
+              },
+              required: ["index", "condition"],
+            },
           },
         },
-        required: ["sameProductIndexes"],
+        required: ["matches"],
       },
     },
   );
 
   if (result == null) return offers;
-  let keep: Set<number>;
   try {
-    keep = new Set(filterSchema.parse(result).sameProductIndexes);
+    const matches = filterSchema.parse(result).matches;
+    const kept: ShoppingOffer[] = [];
+    for (const m of matches) {
+      const offer = offers[m.index];
+      if (offer) kept.push({ ...offer, condition: m.condition });
+    }
+    return kept;
   } catch {
     return offers;
   }
-  return offers.filter((_, i) => keep.has(i));
 }
 
 function hostname(url: string): string {

@@ -86,7 +86,8 @@ export function mountBadge(): BadgeHandle {
     .dm-retailer { color: #5b6066; }
     .dm-price { font-weight: 600; color: #1558d6; display: inline-flex; align-items: center; gap: 7px; }
     .dm-tag { background: #1aa260; color: #fff; font-size: 10px; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 6px; border-radius: 5px; }
+      text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 6px; border-radius: 5px; margin-left: 6px; }
+    .dm-tag.dm-used { background: #8a8f96; }
     .dm-foot { margin-top: 12px; font-size: 11px; color: #9aa0a6; }
   `;
 

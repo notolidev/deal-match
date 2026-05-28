@@ -49,13 +49,21 @@ export function dealSummary(r: AnalysisResult): { tone: Tone; headline: string }
 export function renderCard(r: AnalysisResult, meta: CardMeta = {}): string {
   const { tone, headline } = dealSummary(r);
   const sorted = [...r.observations].sort((a, b) => a.price - b.price);
-  const cheapest = sorted[0];
+  // "Best" is the cheapest NEW item — used/refurbished aren't like-for-like.
+  const cheapestNew = sorted.find((o) => (o.condition ?? "new") === "new");
 
   const rows = sorted
     .map((o) => {
-      const isBest = cheapest && o.url === cheapest.url && sorted.length > 1;
+      const isBest = cheapestNew && o.url === cheapestNew.url && sorted.length > 1;
+      const cond = o.condition ?? "new";
+      const condTag =
+        cond === "used"
+          ? '<span class="dm-tag dm-used">Used</span>'
+          : cond === "refurbished"
+            ? '<span class="dm-tag dm-used">Refurb</span>'
+            : "";
       return `<a class="dm-row${isBest ? " dm-best" : ""}" href="${esc(o.url)}" target="_blank" rel="noreferrer">
-        <span class="dm-retailer">${esc(o.retailer)}</span>
+        <span class="dm-retailer">${esc(o.retailer)}${condTag}</span>
         <span class="dm-price">${money(o.price, o.currency)}${isBest ? '<span class="dm-tag">Best</span>' : ""}</span>
       </a>`;
     })

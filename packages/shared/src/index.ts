@@ -20,6 +20,8 @@ export interface AnalyzeRequest {
   refresh?: boolean;
 }
 
+export type ProductCondition = "new" | "used" | "refurbished";
+
 export interface PriceObservation {
   retailer: string;
   url: string;
@@ -27,6 +29,7 @@ export interface PriceObservation {
   currency: string;
   observedAt: string;
   inStock?: boolean;
+  condition?: ProductCondition;
 }
 
 export interface BetterDeal {

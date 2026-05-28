@@ -50,6 +50,7 @@ export async function findDeals(
         currency: currentCurrency ?? "USD",
         observedAt: new Date().toISOString(),
         inStock: true,
+        condition: "new",
       });
     }
 
@@ -77,7 +78,7 @@ export async function findDeals(
           console.log(`[agent] drop currency ${o.currency} ${h}`);
           continue;
         }
-        console.log(`[agent] add ${o.retailer} ${o.currency} ${o.price} (${h})`);
+        console.log(`[agent] add ${o.retailer} ${o.currency} ${o.price} ${o.condition} (${h})`);
         observations.push({
           retailer: o.retailer,
           url: o.link,
@@ -85,6 +86,7 @@ export async function findDeals(
           currency: o.currency,
           observedAt: now,
           inStock: true,
+          condition: o.condition,
         });
       }
       return observations;
