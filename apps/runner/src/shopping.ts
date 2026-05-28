@@ -26,13 +26,15 @@ const CURRENCY_BY_SYMBOL: Record<string, string> = {
   "¥": "JPY",
 };
 
-// Google's gl param uses "uk" (not gb) for the United Kingdom.
-const GL_BY_CURRENCY: Record<string, string> = {
-  GBP: "uk",
-  USD: "us",
-  EUR: "de",
-  AUD: "au",
-  CAD: "ca",
+// Region controls the currency Google Shopping returns. gl alone wasn't
+// enough (gl=uk still came back USD); the `location` string is the reliable
+// signal, so we send both.
+const REGION_BY_CURRENCY: Record<string, { gl: string; location: string }> = {
+  GBP: { gl: "uk", location: "United Kingdom" },
+  USD: { gl: "us", location: "United States" },
+  EUR: { gl: "de", location: "Germany" },
+  AUD: { gl: "au", location: "Australia" },
+  CAD: { gl: "ca", location: "Canada" },
 };
 
 function parsePrice(raw: string | undefined): { price?: number; currency?: string } {
@@ -55,17 +57,18 @@ export async function shoppingSearch(
   const key = process.env.SERPER_API_KEY;
   if (!key) return [];
 
-  const gl =
-    process.env.SERPER_GL ??
-    (targetCurrency ? GL_BY_CURRENCY[targetCurrency.toUpperCase()] : undefined) ??
-    "us";
+  const region =
+    (targetCurrency && REGION_BY_CURRENCY[targetCurrency.toUpperCase()]) ||
+    REGION_BY_CURRENCY.USD;
+  const gl = process.env.SERPER_GL ?? region.gl;
+  const location = process.env.SERPER_LOCATION ?? region.location;
 
   let items: SerperShoppingItem[] = [];
   try {
     const res = await fetch("https://google.serper.dev/shopping", {
       method: "POST",
       headers: { "X-API-KEY": key, "Content-Type": "application/json" },
-      body: JSON.stringify({ q: query, gl }),
+      body: JSON.stringify({ q: query, gl, location }),
       signal: AbortSignal.timeout(15_000),
     });
     if (!res.ok) throw new Error(`serper responded ${res.status}`);
@@ -89,7 +92,7 @@ export async function shoppingSearch(
       link: it.link,
     });
   }
-  console.log(`[shopping] query=${JSON.stringify(query)} gl=${gl} offers=${offers.length}`);
+  console.log(`[shopping] query=${JSON.stringify(query)} gl=${gl} location=${JSON.stringify(location)} offers=${offers.length}`);
   return offers;
 }
 
