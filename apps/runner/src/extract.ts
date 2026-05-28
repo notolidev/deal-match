@@ -80,7 +80,7 @@ export async function extractFromPage(
       };
     });
 
-    return classify({ url, pageText, jsonLd, target });
+    return await classify({ url, pageText, jsonLd, target });
   } catch (err) {
     return {
       matches: false,
