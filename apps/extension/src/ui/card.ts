@@ -54,13 +54,10 @@ export function renderCard(r: AnalysisResult, meta: CardMeta = {}): string {
   const rows = sorted
     .map((o) => {
       const isBest = cheapest && o.url === cheapest.url && sorted.length > 1;
-      return `<div class="dm-row${isBest ? " dm-best" : ""}">
+      return `<a class="dm-row${isBest ? " dm-best" : ""}" href="${esc(o.url)}" target="_blank" rel="noreferrer">
         <span class="dm-retailer">${esc(o.retailer)}</span>
-        <span class="dm-price">
-          <a href="${esc(o.url)}" target="_blank" rel="noreferrer">${money(o.price, o.currency)}</a>
-          ${isBest ? '<span class="dm-tag">Best</span>' : ""}
-        </span>
-      </div>`;
+        <span class="dm-price">${money(o.price, o.currency)}${isBest ? '<span class="dm-tag">Best</span>' : ""}</span>
+      </a>`;
     })
     .join("");
 

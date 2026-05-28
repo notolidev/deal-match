@@ -78,13 +78,13 @@ export function mountBadge(): BadgeHandle {
 
     .dm-prices { border-top: 1px solid #ecedef; }
     .dm-row { display: flex; justify-content: space-between; align-items: center;
-      gap: 12px; padding: 9px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; }
+      gap: 12px; padding: 9px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px;
+      text-decoration: none; color: inherit; cursor: pointer; }
     .dm-row:last-child { border-bottom: none; }
+    .dm-row:hover { background: #f7f8fa; margin: 0 -16px; padding: 9px 16px; }
     .dm-row.dm-best { margin: 0 -16px; padding: 9px 16px; background: #f0faf3; }
     .dm-retailer { color: #5b6066; }
-    .dm-price { font-weight: 600; display: inline-flex; align-items: center; gap: 7px; }
-    .dm-price a { color: #1558d6; text-decoration: none; }
-    .dm-price a:hover { text-decoration: underline; }
+    .dm-price { font-weight: 600; color: #1558d6; display: inline-flex; align-items: center; gap: 7px; }
     .dm-tag { background: #1aa260; color: #fff; font-size: 10px; font-weight: 700;
       text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 6px; border-radius: 5px; }
     .dm-foot { margin-top: 12px; font-size: 11px; color: #9aa0a6; }

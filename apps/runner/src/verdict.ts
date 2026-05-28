@@ -17,9 +17,11 @@ export async function synthesizeVerdict(
   signals: ProductSignals,
   observations: PriceObservation[],
 ): Promise<AnalysisResult> {
+  // Prefer the corrected current-page observation (single-unit price) over
+  // the raw content-script price, which may be a bulk/multi-buy headline.
   const currentPrice =
-    signals.price ??
     observations.find((o) => sameHost(o.url, signals.url))?.price ??
+    signals.price ??
     observations[0]?.price;
   const currency = signals.currency ?? observations[0]?.currency ?? "USD";
 
