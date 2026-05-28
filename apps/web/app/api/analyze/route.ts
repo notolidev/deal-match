@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import type { AnalyzeResponse } from "@deal-match/shared";
-import { fastPath, startJob } from "@/lib/jobs";
+import { analyzeNow, fastPath } from "@/lib/jobs";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -48,9 +48,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(res);
   }
 
-  const job = startJob(signals);
-  const res: AnalyzeResponse = { jobId: job.id, status: job.status };
-  return NextResponse.json(res, { status: 202 });
+  const result = await analyzeNow(signals);
+  const res: AnalyzeResponse = {
+    jobId: "sync",
+    status: "ready",
+    result,
+  };
+  return NextResponse.json(res);
 }
 
 export function OPTIONS() {

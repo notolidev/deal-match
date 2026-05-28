@@ -27,43 +27,11 @@ async function bootstrap() {
       if (response.status === "ready" && response.result) {
         badge.setResult(response.result);
         cacheForPopup(response.result);
-      } else if (response.status === "pending") {
-        poll(response.jobId, badge);
       } else if (response.status === "error") {
         badge.setError(response.error ?? "error");
       }
     },
   );
-}
-
-function poll(
-  jobId: string,
-  badge: ReturnType<typeof mountBadge>,
-  attempt = 0,
-) {
-  if (attempt > 60) {
-    badge.setError("timeout");
-    return;
-  }
-  setTimeout(() => {
-    chrome.runtime.sendMessage(
-      { type: "poll", jobId },
-      (response?: AnalyzeResponse | { error: string }) => {
-        if (!response || "error" in response) {
-          poll(jobId, badge, attempt + 1);
-          return;
-        }
-        if (response.status === "ready" && response.result) {
-          badge.setResult(response.result);
-          cacheForPopup(response.result);
-        } else if (response.status === "error") {
-          badge.setError(response.error ?? "error");
-        } else {
-          poll(jobId, badge, attempt + 1);
-        }
-      },
-    );
-  }, 2000);
 }
 
 function cacheForPopup(result: unknown) {

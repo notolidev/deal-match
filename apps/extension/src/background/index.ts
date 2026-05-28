@@ -9,7 +9,6 @@ const LATEST_KEY = "deal-match:latest";
 
 type Message =
   | { type: "analyze"; signals: ProductSignals }
-  | { type: "poll"; jobId: string }
   | { type: "set-latest"; url: string; result: unknown }
   | { type: "get-latest" }
   | { type: "open-popup" };
@@ -23,14 +22,6 @@ chrome.runtime.onMessage.addListener(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       })
-        .then(async (r) => (await r.json()) as AnalyzeResponse)
-        .then((data) => sendResponse(data))
-        .catch((err) => sendResponse({ error: String(err) }));
-      return true;
-    }
-
-    if (msg.type === "poll") {
-      fetch(`${API_BASE}/api/jobs/${encodeURIComponent(msg.jobId)}`)
         .then(async (r) => (await r.json()) as AnalyzeResponse)
         .then((data) => sendResponse(data))
         .catch((err) => sendResponse({ error: String(err) }));
