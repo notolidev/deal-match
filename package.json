@@ -1,0 +1,17 @@
+{
+  "name": "deal-match",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "dev:web": "pnpm --filter @deal-match/web dev",
+    "dev:ext": "pnpm --filter @deal-match/extension dev",
+    "dev:runner": "pnpm --filter @deal-match/runner dev",
+    "build:web": "pnpm --filter @deal-match/web build",
+    "build:ext": "pnpm --filter @deal-match/extension build",
+    "stack:up": "docker compose up -d --build",
+    "stack:down": "docker compose down",
+    "stack:logs": "docker compose logs -f",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "packageManager": "pnpm@10.33.0"
+}

@@ -76,7 +76,7 @@ cp .env.example .env
 echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> .env
 echo "RUNNER_TOKEN=$(openssl rand -hex 32)"     >> .env
 
-# Edit .env to set DOMAIN= and (optionally) AI_GATEWAY_API_KEY=
+# Edit .env to set DOMAIN= and (optionally) ANTHROPIC_API_KEY=
 $EDITOR .env
 
 pnpm stack:up   # or: docker compose up -d --build
@@ -102,7 +102,7 @@ vercel link
 vercel env add DATABASE_URL          # postgres://dealmatch:PASSWORD@DOMAIN:5432/dealmatch
 vercel env add WEBWRIGHT_RUNNER_URL  # https://DOMAIN/run
 vercel env add WEBWRIGHT_RUNNER_TOKEN # same RUNNER_TOKEN from your VPS .env
-vercel env add AI_GATEWAY_API_KEY    # optional, enables LLM verdicts
+vercel env add ANTHROPIC_API_KEY     # optional, enables LLM verdicts
 vercel deploy --prod
 ```
 
@@ -141,11 +141,11 @@ Tables: `products`, `price_observations`, `analyses` (see `apps/web/db/schema.sq
 | VPS `.env` | `DOMAIN` | Caddy auto-TLS domain |
 | VPS `.env` | `POSTGRES_PASSWORD` | Postgres superuser password |
 | VPS `.env` | `RUNNER_TOKEN` | Shared secret for `/run` auth |
-| VPS `.env` | `AI_GATEWAY_API_KEY` / `ANTHROPIC_API_KEY` | Enables LLM-driven same-SKU verification |
+| VPS `.env` | `ANTHROPIC_API_KEY` | Enables LLM-driven same-SKU verification |
 | Vercel | `DATABASE_URL` | `postgres://...@<vps>:5432/dealmatch` |
 | Vercel | `WEBWRIGHT_RUNNER_URL` | `https://<vps>/run` |
 | Vercel | `WEBWRIGHT_RUNNER_TOKEN` | Same value as `RUNNER_TOKEN` |
-| Vercel | `AI_GATEWAY_API_KEY` | Enables LLM-driven verdict synthesis |
+| Vercel | `ANTHROPIC_API_KEY` | Enables LLM-driven verdict synthesis |
 
 Without any env vars set, everything still runs end-to-end against deterministic stubs so you can develop offline.
 
@@ -156,7 +156,7 @@ Without any env vars set, everything still runs end-to-end against deterministic
 | Next.js API | Vercel | Hobby tier is generally free; near-zero per-request CPU |
 | Scraping + Playwright | Your VPS | Flat-rate (the whole point of moving it here) |
 | Postgres | Your VPS | Flat-rate |
-| AI Gateway (verdict + same-SKU LLM) | Pay-per-token | Bounded: ~1 LLM call per cache miss, ~6 candidate-verifications per miss |
+| Anthropic API (verdict + same-SKU LLM) | Pay-per-token | Bounded: ~1 LLM call per cache miss, ~6 candidate-verifications per miss |
 
 A KVM-2 (2 vCPU / 2 GB) comfortably runs ~2–3 concurrent Playwright sessions. The Postgres cache means each product only needs one scrape per 24 h regardless of how many users hit it.
 # deal-match

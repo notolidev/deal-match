@@ -1,0 +1,124 @@
+import Anthropic from "@anthropic-ai/sdk";
+import { z } from "zod";
+import type {
+  AnalysisResult,
+  PriceObservation,
+  ProductSignals,
+} from "@deal-match/shared";
+
+const verdictSchema = z.object({
+  verdict: z.enum(["buy", "wait", "neutral"]),
+  confidence: z.number().min(0).max(1),
+  oneLineReason: z.string().max(160),
+  waitForEvent: z.string().max(160).optional(),
+});
+
+const MODEL = "claude-haiku-4-5";
+
+export async function synthesizeVerdict(
+  signals: ProductSignals,
+  observations: PriceObservation[],
+): Promise<AnalysisResult> {
+  const currentPrice =
+    signals.price ??
+    observations.find((o) => sameHost(o.url, signals.url))?.price ??
+    observations[0]?.price;
+  const currency =
+    signals.currency ?? observations[0]?.currency ?? "USD";
+
+  const sorted = [...observations].sort((a, b) => a.price - b.price);
+  const cheapest = sorted[0];
+  const betterDeal =
+    cheapest && currentPrice && cheapest.price < currentPrice * 0.97
+      ? {
+          retailer: cheapest.retailer,
+          url: cheapest.url,
+          price: cheapest.price,
+          currency: cheapest.currency,
+          savings: Math.round((currentPrice - cheapest.price) * 100) / 100,
+        }
+      : undefined;
+
+  const ninetyDayLow = Math.min(...observations.map((o) => o.price));
+
+  const fallback: AnalysisResult = {
+    verdict: betterDeal ? "wait" : "neutral",
+    confidence: 0.4,
+    oneLineReason: betterDeal
+      ? `Same item is $${betterDeal.savings.toFixed(2)} cheaper at ${betterDeal.retailer}.`
+      : "Not enough data to judge — price looks typical.",
+    currentPrice,
+    currency,
+    ninetyDayLow: Number.isFinite(ninetyDayLow) ? ninetyDayLow : undefined,
+    observations,
+    betterDeal,
+    generatedAt: new Date().toISOString(),
+  };
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return fallback;
+  }
+
+  try {
+    const msg = await new Anthropic().messages.create({
+      model: MODEL,
+      max_tokens: 512,
+      system:
+        "You are a deal-evaluation assistant. Given a current price and a comparison table of the same product at other retailers, decide whether the user should buy now, wait, or stay neutral. Keep reasoning concise and consumer-friendly. Always respond by calling the report_verdict tool.",
+      tools: [
+        {
+          name: "report_verdict",
+          description: "Report the buy/wait/neutral verdict for the product.",
+          input_schema: {
+            type: "object",
+            properties: {
+              verdict: { type: "string", enum: ["buy", "wait", "neutral"] },
+              confidence: { type: "number", minimum: 0, maximum: 1 },
+              oneLineReason: { type: "string", maxLength: 160 },
+              waitForEvent: { type: "string", maxLength: 160 },
+            },
+            required: ["verdict", "confidence", "oneLineReason"],
+          },
+        },
+      ],
+      tool_choice: { type: "tool", name: "report_verdict" },
+      messages: [
+        {
+          role: "user",
+          content: JSON.stringify({
+            product: {
+              title: signals.title,
+              brand: signals.brand,
+              currentPrice,
+              currency,
+              url: signals.url,
+            },
+            observations,
+          }),
+        },
+      ],
+    });
+
+    const toolUse = msg.content.find((b) => b.type === "tool_use");
+    if (!toolUse || toolUse.type !== "tool_use") return fallback;
+    const object = verdictSchema.parse(toolUse.input);
+    return {
+      ...fallback,
+      verdict: object.verdict,
+      confidence: object.confidence,
+      oneLineReason: object.oneLineReason,
+      waitForEvent: object.waitForEvent,
+    };
+  } catch (err) {
+    console.error("verdict synthesis failed, returning fallback", err);
+    return fallback;
+  }
+}
+
+function sameHost(a: string, b: string): boolean {
+  try {
+    return new URL(a).hostname === new URL(b).hostname;
+  } catch {
+    return false;
+  }
+}
