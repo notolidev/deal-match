@@ -6,17 +6,32 @@ export interface SearchHit {
   snippet?: string;
 }
 
-const RETAILER_HINT = [
-  "amazon.com",
-  "walmart.com",
-  "bestbuy.com",
-  "target.com",
-  "ebay.com",
-  "newegg.com",
-  "bhphotovideo.com",
-  "costco.com",
-  "homedepot.com",
+// Match known retailers by name as a domain label, so region TLDs
+// (amazon.co.uk, currys.co.uk, ebay.de, …) are all accepted.
+const RETAILER_NAMES = [
+  "amazon",
+  "ebay",
+  "walmart",
+  "bestbuy",
+  "target",
+  "newegg",
+  "bhphotovideo",
+  "costco",
+  "homedepot",
+  "argos",
+  "currys",
+  "johnlewis",
+  "very",
+  "ao",
+  "screwfix",
+  "ebuyer",
+  "overclockers",
+  "scan",
+  "box",
+  "appliancesdirect",
+  "richersounds",
 ];
+const RETAILER_RE = new RegExp(`(^|\\.)(${RETAILER_NAMES.join("|")})\\.`, "i");
 
 function buildQuery(title: string, brand: string | undefined): string {
   const q = brand ? `${brand} ${title}` : title;
@@ -68,7 +83,7 @@ export async function search(
       .filter((h) => {
         try {
           const host = new URL(h.url).hostname.replace(/^www\./, "");
-          return RETAILER_HINT.some((d) => host === d || host.endsWith(`.${d}`));
+          return RETAILER_RE.test(host);
         } catch {
           return false;
         }
