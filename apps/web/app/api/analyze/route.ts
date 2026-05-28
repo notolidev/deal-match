@@ -9,10 +9,10 @@ const signalsSchema = z.object({
   url: z.string().url(),
   title: z.string().optional(),
   brand: z.string().optional(),
-  upc: z.string().optional(),
-  gtin: z.string().optional(),
-  sku: z.string().optional(),
-  price: z.number().optional(),
+  upc: z.coerce.string().optional(),
+  gtin: z.coerce.string().optional(),
+  sku: z.coerce.string().optional(),
+  price: z.coerce.number().optional(),
   currency: z.string().optional(),
   imageUrl: z.string().optional(),
   jsonLd: z.unknown().optional(),
@@ -33,8 +33,11 @@ export async function POST(req: NextRequest) {
   }
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) {
+    const fields = parsed.error.issues
+      .map((i) => i.path.join("."))
+      .join(", ");
     return NextResponse.json(
-      { error: "invalid signals", details: parsed.error.flatten() },
+      { error: `invalid signals (${fields})`, details: parsed.error.flatten() },
       { status: 400 },
     );
   }

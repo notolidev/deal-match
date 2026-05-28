@@ -156,20 +156,29 @@ export function extractProductSignals(): ProductSignals | null {
 
   if (!title && !price && !ld) return null;
 
+  // JSON-LD fields are often non-strings at runtime (numeric gtin/sku, image
+  // as an object/array). Coerce every text field to a real string (or drop it)
+  // so the backend's schema doesn't reject the whole payload.
   return {
     url,
-    title,
-    brand,
-    upc,
-    gtin,
-    sku,
-    price,
-    currency,
-    imageUrl,
+    title: str(title),
+    brand: str(brand),
+    upc: str(upc),
+    gtin: str(gtin),
+    sku: str(sku),
+    price: typeof price === "number" && Number.isFinite(price) ? price : undefined,
+    currency: str(currency),
+    imageUrl: str(imageUrl),
     jsonLd: ld,
     // Always include a generous chunk of the visible text. The runner uses it
     // to extract the correct single-unit current price with the LLM (the page
     // itself often can't be loaded server-side due to bot blocks).
     pageTextSnippet: document.body?.innerText?.slice(0, 4000),
   };
+}
+
+function str(v: unknown): string | undefined {
+  if (typeof v === "string") return v || undefined;
+  if (typeof v === "number" && Number.isFinite(v)) return String(v);
+  return undefined;
 }
