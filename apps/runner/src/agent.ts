@@ -4,7 +4,7 @@ import { withContext } from "./browser.js";
 import { search } from "./search.js";
 import { extractFromPage } from "./extract.js";
 
-const MAX_CANDIDATES = 6;
+const MAX_CANDIDATES = 8;
 const PARALLEL = 3;
 
 function hostname(url: string): string {
@@ -58,11 +58,18 @@ export async function findDeals(
     );
 
     const now = new Date().toISOString();
+    const targetCurrency = signals.currency?.toUpperCase();
     for (const { hit, ex } of extractions) {
       console.log(
         `[agent] ${hostname(hit.url)} matches=${ex.matches} price=${ex.price ?? "?"} ${ex.reason ?? ""}`,
       );
       if (!ex.matches || ex.price == null) continue;
+      // Drop foreign-currency listings — comparing €23 to £22 is meaningless
+      // and surfaces out-of-region shops as bogus "deals".
+      if (ex.currency && targetCurrency && ex.currency.toUpperCase() !== targetCurrency) {
+        console.log(`[agent] skip ${hostname(hit.url)}: ${ex.currency} != ${targetCurrency}`);
+        continue;
+      }
       observations.push({
         retailer: hostname(hit.url),
         url: hit.url,

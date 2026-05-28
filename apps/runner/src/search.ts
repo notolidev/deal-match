@@ -112,20 +112,33 @@ export async function search(
   if (!signals.title) return [];
 
   const query = await buildQuery(signals);
-  const url = new URL("/search", SEARXNG_URL);
-  url.searchParams.set("q", query);
-  url.searchParams.set("format", "json");
-  url.searchParams.set("categories", "general");
 
-  let results: SearxResult[] = [];
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
-    if (!res.ok) throw new Error(`searxng responded ${res.status}`);
-    const data = (await res.json()) as { results?: SearxResult[] };
-    results = data.results ?? [];
-  } catch (err) {
-    console.error("searxng search failed", err);
-    return [];
+  // Fetch two result pages in parallel for better recall, then dedupe by URL.
+  const pages = await Promise.all(
+    [1, 2].map(async (pageno) => {
+      const url = new URL("/search", SEARXNG_URL);
+      url.searchParams.set("q", query);
+      url.searchParams.set("format", "json");
+      url.searchParams.set("categories", "general");
+      url.searchParams.set("pageno", String(pageno));
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+        if (!res.ok) throw new Error(`searxng responded ${res.status}`);
+        const data = (await res.json()) as { results?: SearxResult[] };
+        return data.results ?? [];
+      } catch (err) {
+        console.error(`searxng search failed (page ${pageno})`, err);
+        return [];
+      }
+    }),
+  );
+
+  const seen = new Set<string>();
+  const results: SearxResult[] = [];
+  for (const r of pages.flat()) {
+    if (!r.url || seen.has(r.url)) continue;
+    seen.add(r.url);
+    results.push(r);
   }
 
   const hits = results

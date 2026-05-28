@@ -9,7 +9,7 @@ const extractionSchema = z.object({
   price: z.number().optional(),
   currency: z.string().optional(),
   inStock: z.boolean().optional(),
-  reason: z.string().max(160).optional(),
+  reason: z.string().optional(),
 });
 
 export type Extraction = z.infer<typeof extractionSchema>;
@@ -81,7 +81,7 @@ export async function extractFromPage(
               price: { type: "number" },
               currency: { type: "string" },
               inStock: { type: "boolean" },
-              reason: { type: "string", maxLength: 160 },
+              reason: { type: "string" },
             },
             required: ["matches", "confidence"],
           },
