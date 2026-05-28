@@ -58,7 +58,7 @@ export async function synthesizeVerdict(
 
   try {
     const result = await chatJson(
-      "You are a deal-evaluation assistant. Given a current price and a comparison table of the same product at other retailers, decide whether the user should buy now, wait, or stay neutral. Keep reasoning concise and consumer-friendly.",
+      "You are a deal-evaluation assistant. Given a current price and a comparison table of the same product at other retailers, decide whether the user should buy now, wait, or stay neutral. Keep reasoning concise and consumer-friendly. Base every number strictly on the data provided — never invent prices. Write plainly; do not use em dashes or en dashes.",
       JSON.stringify({
         product: {
           title: signals.title,

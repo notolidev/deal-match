@@ -35,13 +35,13 @@ export async function findDeals(
     let currentCurrency = signals.currency;
     if (signals.pageTextSnippet) {
       const self = await extractFromText(signals.url, signals.pageTextSnippet, target);
-      if (self.price != null) {
+      if (self.price != null && self.price > 0) {
         currentPrice = self.price;
         currentCurrency = self.currency ?? currentCurrency;
       }
       console.log(`[agent] self ${hostname(signals.url)} price=${self.price ?? "?"} (signals=${signals.price ?? "?"})`);
     }
-    if (currentPrice != null) {
+    if (currentPrice != null && currentPrice > 0) {
       observations.push({
         retailer: hostname(signals.url),
         url: signals.url,
@@ -78,7 +78,7 @@ export async function findDeals(
       console.log(
         `[agent] ${hostname(hit.url)} matches=${ex.matches} price=${ex.price ?? "?"} ${ex.reason ?? ""}`,
       );
-      if (!ex.matches || ex.price == null) continue;
+      if (!ex.matches || ex.price == null || ex.price <= 0) continue;
       // Drop foreign-currency listings — comparing €23 to £22 is meaningless
       // and surfaces out-of-region shops as bogus "deals".
       if (ex.currency && targetCurrency && ex.currency.toUpperCase() !== targetCurrency) {
