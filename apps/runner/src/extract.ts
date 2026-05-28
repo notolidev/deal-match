@@ -66,6 +66,7 @@ export async function extractFromPage(
         "You decide whether a web page is a RETAILER PRODUCT LISTING where the target product can be BOUGHT RIGHT NOW, and extract its price. " +
         "Set matches=true ONLY if BOTH hold: (1) it is the same product — reject different models, variants, sizes, or bundles; and (2) the page is a shop's product/checkout page where you can purchase it (a current listed price with an add-to-cart/buy action and availability). " +
         "Set matches=false for reviews, blog posts, news, articles, forums, videos, how-to/guide pages, and price-comparison or aggregator pages — anything that merely mentions the product or a price without selling it. When unsure, return matches=false. " +
+        "PRICE: extract the price to buy ONE unit at the standard single quantity. IGNORE multi-buy, bulk, 'from N pieces'/'each when you buy N', subscription, trade, student, or membership prices, and ignore ex-VAT prices when an inc-VAT price is shown. If only a multi-buy price is available, use the per-single-unit price. " +
         "Always respond by calling the report_match tool.",
       tools: [
         {

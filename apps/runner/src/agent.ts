@@ -20,14 +20,34 @@ export async function findDeals(
 ): Promise<PriceObservation[]> {
   return withContext(async (ctx) => {
     const observations: PriceObservation[] = [];
+    const target = {
+      title: signals.title,
+      brand: signals.brand,
+      upc: signals.upc ?? signals.gtin,
+    };
 
-    // 1. Always observe the user's current page (cheap baseline).
-    if (signals.price != null) {
+    // 1. Observe the user's current page. Re-extract with the LLM so the
+    //    single-unit price is correct even when the page leads with a bulk /
+    //    multi-buy price; fall back to the content script's price if the
+    //    visit fails (e.g. bot-blocked).
+    let currentPrice = signals.price;
+    let currentCurrency = signals.currency;
+    try {
+      const self = await extractFromPage(ctx, signals.url, target);
+      if (self.matches && self.price != null) {
+        currentPrice = self.price;
+        currentCurrency = self.currency ?? currentCurrency;
+      }
+      console.log(`[agent] self ${hostname(signals.url)} price=${self.price ?? "?"} (signals=${signals.price ?? "?"})`);
+    } catch (err) {
+      console.warn("self-extract failed, using signals price", err);
+    }
+    if (currentPrice != null) {
       observations.push({
         retailer: hostname(signals.url),
         url: signals.url,
-        price: signals.price,
-        currency: signals.currency ?? "USD",
+        price: currentPrice,
+        currency: currentCurrency ?? "USD",
         observedAt: new Date().toISOString(),
         inStock: true,
       });
@@ -47,11 +67,7 @@ export async function findDeals(
     const extractions = await Promise.all(
       candidates.map((hit) =>
         limit(async () => {
-          const ex = await extractFromPage(ctx, hit.url, {
-            title: signals.title,
-            brand: signals.brand,
-            upc: signals.upc ?? signals.gtin,
-          });
+          const ex = await extractFromPage(ctx, hit.url, target);
           return { hit, ex };
         }),
       ),
