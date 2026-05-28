@@ -60,3 +60,18 @@ h1 {
 }
 
 a { color: #8ab4f8; }
+
+#analyse {
+  width: 100%;
+  margin-top: 16px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: #1558d6;
+  color: #fff;
+  font: 600 14px/1 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+#analyse:hover { background: #1146ad; }

@@ -10,8 +10,7 @@ const LATEST_KEY = "deal-match:latest";
 type Message =
   | { type: "analyze"; signals: ProductSignals }
   | { type: "set-latest"; url: string; result: unknown }
-  | { type: "get-latest" }
-  | { type: "open-popup" };
+  | { type: "get-latest" };
 
 chrome.runtime.onMessage.addListener(
   (msg: Message, _sender, sendResponse) => {
